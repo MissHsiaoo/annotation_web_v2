@@ -19,13 +19,13 @@ interface RadioFieldProps {
 
 export function RadioField({ label, value, options, onChange }: RadioFieldProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
       <p className="text-sm font-semibold text-slate-900">{label}</p>
-      <RadioGroup value={value} onValueChange={onChange} className="grid gap-2.5">
+      <RadioGroup value={value} onValueChange={onChange} className="grid gap-2 sm:grid-cols-2">
         {options.map((option) => (
           <Label
             key={option.value}
-            className={`items-start gap-3 rounded-xl border p-3.5 transition-all ${
+            className={`items-start gap-3 rounded-xl border px-3 py-3 transition-all ${
               value === option.value
                 ? 'border-sky-300 bg-sky-50 shadow-sm ring-1 ring-sky-100'
                 : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -59,15 +59,15 @@ export function CheckboxField({ label, values, options, onChange }: CheckboxFiel
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
       <p className="text-sm font-semibold text-slate-900">{label}</p>
-      <div className="space-y-2.5">
+      <div className="grid gap-2 sm:grid-cols-2">
         {options.map((option) => {
           const isChecked = values.includes(option.value);
           return (
             <Label
               key={option.value}
-              className={`items-start gap-3 rounded-xl border p-3.5 transition-all ${
+              className={`items-start gap-3 rounded-xl border px-3 py-3 transition-all ${
                 isChecked
                   ? 'border-sky-300 bg-sky-50 shadow-sm ring-1 ring-sky-100'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -101,13 +101,13 @@ interface TextAreaFieldProps {
 
 export function TextAreaField({ label, value, onChange, placeholder }: TextAreaFieldProps) {
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
       <p className="text-sm font-semibold text-slate-900">{label}</p>
       <Textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-32 rounded-xl border-slate-300 bg-white"
+        className="min-h-24 rounded-xl border-slate-300 bg-white"
       />
     </div>
   );
@@ -123,7 +123,7 @@ interface NumberFieldProps {
 
 export function NumberField({ label, value, onChange, min = 0, max = 100 }: NumberFieldProps) {
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
       <p className="text-sm font-semibold text-slate-900">{label}</p>
       <Input
         type="number"

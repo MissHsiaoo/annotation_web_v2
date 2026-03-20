@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Languages } from 'lucide-react';
 
 import { Button } from '../../../components/ui/button';
@@ -92,6 +92,34 @@ function getResponseItems(modelOutput: Dictionary | null): Array<{ label?: strin
   return responseText ? [{ text: responseText }] : [];
 }
 
+function DisplaySection({
+  title,
+  tone,
+  children,
+}: {
+  title: string;
+  tone: 'input' | 'output' | 'judge';
+  children: ReactNode;
+}) {
+  const toneClasses =
+    tone === 'input'
+      ? 'border-sky-200 bg-sky-50/55'
+      : tone === 'output'
+        ? 'border-amber-200 bg-amber-50/60'
+        : 'border-violet-200 bg-violet-50/60';
+
+  return (
+    <section className={`rounded-3xl border p-4 ${toneClasses}`}>
+      <div className="mb-4">
+        <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700">
+          {title}
+        </span>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
 export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisplayProps) {
   const [translationEnabled, setTranslationEnabled] = useState(false);
 
@@ -117,18 +145,22 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
       const probe = asDictionary(original.probe);
       return (
         <>
-          <ConversationBlock
-            title="Dialogue"
-            description="Source conversation used to construct the benchmark memory."
-            turns={normalizeConversation(probe?.dialogue)}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Gold memories"
-            description="Benchmark gold memories to review against the dialogue."
-            items={asArray(probe?.ground_truth_memories)}
-            translationEnabled={translationEnabled}
-          />
+          <DisplaySection title="Input context" tone="input">
+            <ConversationBlock
+              title="Dialogue"
+              description="Source conversation used to construct the benchmark memory."
+              turns={normalizeConversation(probe?.dialogue)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
+          <DisplaySection title="Output under review" tone="output">
+            <MemoryListBlock
+              title="Gold memories"
+              description="Benchmark gold memories to review against the dialogue."
+              items={asArray(probe?.ground_truth_memories)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
         </>
       );
     }
@@ -137,24 +169,28 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
       const record = asDictionary(original.record);
       return (
         <>
-          <MemoryListBlock
-            title="Old memory"
-            description="Existing memory state before the update."
-            items={asArray(original.memory)}
-            translationEnabled={translationEnabled}
-          />
-          <ConversationBlock
-            title="New dialogue"
-            description="Fresh dialogue that may trigger the update."
-            turns={normalizeConversation(record?.new_dialogue)}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Gold updated memory"
-            description="Benchmark update result to review."
-            items={asArray(original.answer)}
-            translationEnabled={translationEnabled}
-          />
+          <DisplaySection title="Input context" tone="input">
+            <MemoryListBlock
+              title="Old memory"
+              description="Existing memory state before the update."
+              items={asArray(original.memory)}
+              translationEnabled={translationEnabled}
+            />
+            <ConversationBlock
+              title="New dialogue"
+              description="Fresh dialogue that may trigger the update."
+              turns={normalizeConversation(record?.new_dialogue)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
+          <DisplaySection title="Output under review" tone="output">
+            <MemoryListBlock
+              title="Gold updated memory"
+              description="Benchmark update result to review."
+              items={asArray(original.answer)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
         </>
       );
     }
@@ -163,25 +199,29 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
       const selectedMemory = asDictionary(original.selected_memory);
       return (
         <>
-          <TextBlock
-            title="Query"
-            items={asString(original.query) ? [{ text: original.query }] : []}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Selected memory"
-            description="Target memory chosen for the query."
-            items={selectedMemory ? [selectedMemory] : []}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Candidate memories"
-            description="Searchable candidate pool for the query-memory fit review."
-            items={asArray(original.candidate_memories)}
-            searchable
-            collapsible
-            collapsedByDefault
-          />
+          <DisplaySection title="Input context" tone="input">
+            <TextBlock
+              title="Query"
+              items={asString(original.query) ? [{ text: original.query }] : []}
+              translationEnabled={translationEnabled}
+            />
+            <MemoryListBlock
+              title="Candidate memories"
+              description="Searchable candidate pool for the query-memory fit review."
+              items={asArray(original.candidate_memories)}
+              searchable
+              collapsible
+              collapsedByDefault
+            />
+          </DisplaySection>
+          <DisplaySection title="Output under review" tone="output">
+            <MemoryListBlock
+              title="Selected memory"
+              description="Target memory chosen for the query."
+              items={selectedMemory ? [selectedMemory] : []}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
         </>
       );
     }
@@ -204,22 +244,26 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
 
       return (
         <>
-          <TextBlock
-            title="Ability query"
-            description="Ability-specific prompt shown to the model or evaluator."
-            items={queryItems}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Extracted memory"
-            items={asArray(original.extracted_memory)}
-            translationEnabled={translationEnabled}
-          />
-          <ConversationBlock
-            title="Conversation context"
-            turns={normalizeConversation(original.conversation)}
-            translationEnabled={translationEnabled}
-          />
+          <DisplaySection title="Input context" tone="input">
+            <MemoryListBlock
+              title="Extracted memory"
+              items={asArray(original.extracted_memory)}
+              translationEnabled={translationEnabled}
+            />
+            <ConversationBlock
+              title="Conversation context"
+              turns={normalizeConversation(original.conversation)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
+          <DisplaySection title="Output under review" tone="output">
+            <TextBlock
+              title="Ability query"
+              description="Ability-specific prompt shown to the model or evaluator."
+              items={queryItems}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
         </>
       );
     }
@@ -228,22 +272,28 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
       const probe = asDictionary(original.probe);
       return (
         <>
-          <ConversationBlock
-            title="Dialogue"
-            description="Original dialogue shown to the extraction model and human judge."
-            turns={normalizeConversation(probe?.dialogue)}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Gold memories"
-            items={asArray(probe?.ground_truth_memories)}
-            translationEnabled={translationEnabled}
-          />
+          <DisplaySection title="Input context" tone="input">
+            <ConversationBlock
+              title="Dialogue"
+              description="Original dialogue shown to the extraction model and human judge."
+              turns={normalizeConversation(probe?.dialogue)}
+              translationEnabled={translationEnabled}
+            />
+            <MemoryListBlock
+              title="Gold memories"
+              items={asArray(probe?.ground_truth_memories)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
           {modelOutput ? (
-            <JsonPreviewBlock title="Model output" description="Structured extraction output from the assigned model." value={modelOutput} />
+            <DisplaySection title="Output under review" tone="output">
+              <JsonPreviewBlock title="Model output" description="Structured extraction output from the assigned model." value={modelOutput} />
+            </DisplaySection>
           ) : null}
           {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <JsonPreviewBlock title="Judge output" description="Judge-visible payload for alignment review." value={judgeOutputValue} />
+            <DisplaySection title="Judge-visible output" tone="judge">
+              <JsonPreviewBlock title="Judge output" description="Judge-visible payload for alignment review." value={judgeOutputValue} />
+            </DisplaySection>
           ) : null}
         </>
       );
@@ -253,26 +303,34 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
       const record = asDictionary(original.record);
       return (
         <>
-          <MemoryListBlock
-            title="Existing memory"
-            description="Memory state before the update."
-            items={asArray(original.memory)}
-            translationEnabled={translationEnabled}
-          />
-          <ConversationBlock
-            title="New dialogue"
-            description="Dialogue used to evaluate the update."
-            turns={normalizeConversation(record?.new_dialogue)}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Reference updated memory"
-            items={asArray(original.answer)}
-            translationEnabled={translationEnabled}
-          />
-          {modelOutput ? <JsonPreviewBlock title="Model output" value={modelOutput} /> : null}
+          <DisplaySection title="Input context" tone="input">
+            <MemoryListBlock
+              title="Existing memory"
+              description="Memory state before the update."
+              items={asArray(original.memory)}
+              translationEnabled={translationEnabled}
+            />
+            <ConversationBlock
+              title="New dialogue"
+              description="Dialogue used to evaluate the update."
+              turns={normalizeConversation(record?.new_dialogue)}
+              translationEnabled={translationEnabled}
+            />
+            <MemoryListBlock
+              title="Reference updated memory"
+              items={asArray(original.answer)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
+          {modelOutput ? (
+            <DisplaySection title="Output under review" tone="output">
+              <JsonPreviewBlock title="Model output" value={modelOutput} />
+            </DisplaySection>
+          ) : null}
           {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <JsonPreviewBlock title="Judge output" value={judgeOutputValue} />
+            <DisplaySection title="Judge-visible output" tone="judge">
+              <JsonPreviewBlock title="Judge output" value={judgeOutputValue} />
+            </DisplaySection>
           ) : null}
         </>
       );
@@ -282,32 +340,40 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
       const selectedMemory = asDictionary(original.selected_memory);
       return (
         <>
-          <TextBlock
-            title="Query"
-            items={asString(original.query) ? [{ text: original.query }] : []}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Selected memory"
-            items={selectedMemory ? [selectedMemory] : []}
-            translationEnabled={translationEnabled}
-          />
-          {getResponseItems(modelOutput).length > 0 ? (
+          <DisplaySection title="Input context" tone="input">
             <TextBlock
-              title="Model response"
-              description="Response that the judge evaluated for memory usage."
-              items={getResponseItems(modelOutput)}
+              title="Query"
+              items={asString(original.query) ? [{ text: original.query }] : []}
               translationEnabled={translationEnabled}
             />
+            <MemoryListBlock
+              title="Selected memory"
+              items={selectedMemory ? [selectedMemory] : []}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
+          {getResponseItems(modelOutput).length > 0 ? (
+            <DisplaySection title="Output under review" tone="output">
+              <TextBlock
+                title="Model response"
+                description="Response that the judge evaluated for memory usage."
+                items={getResponseItems(modelOutput)}
+                translationEnabled={translationEnabled}
+              />
+            </DisplaySection>
           ) : modelOutput ? (
-            <JsonPreviewBlock title="Model output" value={modelOutput} />
+            <DisplaySection title="Output under review" tone="output">
+              <JsonPreviewBlock title="Model output" value={modelOutput} />
+            </DisplaySection>
           ) : null}
           {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <JsonPreviewBlock
-              title="Judge output"
-              description="Used-memory decision, score, and explanation."
-              value={judgeOutputValue}
-            />
+            <DisplaySection title="Judge-visible output" tone="judge">
+              <JsonPreviewBlock
+                title="Judge output"
+                description="Used-memory decision, score, and explanation."
+                value={judgeOutputValue}
+              />
+            </DisplaySection>
           ) : null}
         </>
       );
@@ -331,35 +397,41 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
 
       return (
         <>
-          <TextBlock
-            title="Ability query"
-            items={queryItems}
-            translationEnabled={translationEnabled}
-          />
-          <MemoryListBlock
-            title="Extracted memory"
-            items={asArray(original.extracted_memory)}
-            translationEnabled={translationEnabled}
-          />
-          <ConversationBlock
-            title="Conversation context"
-            turns={normalizeConversation(original.conversation)}
-            translationEnabled={translationEnabled}
-          />
-          {getResponseItems(modelOutput).length > 0 ? (
-            <TextBlock
-              title="Model response"
-              items={getResponseItems(modelOutput)}
+          <DisplaySection title="Input context" tone="input">
+            <MemoryListBlock
+              title="Extracted memory"
+              items={asArray(original.extracted_memory)}
               translationEnabled={translationEnabled}
             />
-          ) : modelOutput ? (
-            <JsonPreviewBlock title="Model output" value={modelOutput} />
-          ) : null}
+            <ConversationBlock
+              title="Conversation context"
+              turns={normalizeConversation(original.conversation)}
+              translationEnabled={translationEnabled}
+            />
+          </DisplaySection>
+          <DisplaySection title="Output under review" tone="output">
+            <TextBlock
+              title="Ability query"
+              items={queryItems}
+              translationEnabled={translationEnabled}
+            />
+            {getResponseItems(modelOutput).length > 0 ? (
+              <TextBlock
+                title="Model response"
+                items={getResponseItems(modelOutput)}
+                translationEnabled={translationEnabled}
+              />
+            ) : modelOutput ? (
+              <JsonPreviewBlock title="Model output" value={modelOutput} />
+            ) : null}
+          </DisplaySection>
           {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <JsonPreviewBlock title="Judge output" value={judgeOutputValue} />
-          ) : null}
-          {showJudgeArtifacts && typeof itemData.judge_score !== 'undefined' ? (
-            <JsonPreviewBlock title="Judge score summary" value={itemData.judge_score} />
+            <DisplaySection title="Judge-visible output" tone="judge">
+              <JsonPreviewBlock title="Judge output" value={judgeOutputValue} />
+              {typeof itemData.judge_score !== 'undefined' ? (
+                <JsonPreviewBlock title="Judge score summary" value={itemData.judge_score} />
+              ) : null}
+            </DisplaySection>
           ) : null}
         </>
       );

@@ -15,18 +15,18 @@ interface TaskRequirementPanelProps {
 }
 
 export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-      <CardHeader className="border-b border-slate-100 bg-white">
+      <CardHeader className="bg-white px-4 py-4">
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <CardTitle className="flex items-center gap-2 text-slate-900">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-900">
               <ClipboardList className="h-5 w-5 text-slate-700" />
               {requirement.title}
             </CardTitle>
-            <CardDescription className="max-w-4xl text-sm leading-6 text-slate-600">
+            <CardDescription className="max-w-4xl text-sm leading-5 text-slate-600">
               {requirement.objective}
             </CardDescription>
           </div>
@@ -44,7 +44,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
       </CardHeader>
 
       {isOpen ? (
-        <CardContent className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4">
+        <CardContent className="grid gap-3 border-t border-slate-100 p-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <Eye className="h-4 w-4 text-slate-600" />

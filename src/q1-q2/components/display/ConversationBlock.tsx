@@ -38,7 +38,8 @@ export function ConversationBlock({
         <CardTitle className="text-slate-900">{title}</CardTitle>
         {description ? <CardDescription className="text-slate-600">{description}</CardDescription> : null}
       </CardHeader>
-      <CardContent className="max-h-[720px] space-y-4 overflow-y-auto pt-6">
+      <CardContent className="max-h-[720px] overflow-y-auto pt-6">
+        <div className="mx-auto max-w-[1040px] space-y-4">
         {turns.map((turn, index) => {
           const isUser = turn.role === 'user';
 
@@ -51,7 +52,7 @@ export function ConversationBlock({
               ) : null}
 
               <div
-                className={`max-w-[88%] min-w-0 rounded-2xl border p-4 shadow-sm ${
+                className={`max-w-[78%] min-w-0 rounded-2xl border p-4 shadow-sm ${
                   isUser ? 'border-blue-200 bg-blue-50/80' : 'border-emerald-200 bg-emerald-50/80'
                 }`}
               >
@@ -79,6 +80,7 @@ export function ConversationBlock({
             </div>
           );
         })}
+        </div>
       </CardContent>
     </Card>
   );

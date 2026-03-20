@@ -24,6 +24,7 @@ import {
   CardTitle,
 } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
+import { Progress } from '../../components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -92,6 +93,25 @@ function getEntryLabel(entry: ManualCheckDatasetEntry): string {
   return entry.ability ? `${TASK_LABELS[entry.task]} / ${ABILITY_LABELS[entry.ability]}` : TASK_LABELS[entry.task];
 }
 
+function SummaryStat({
+  label,
+  value,
+  tone = 'default',
+  className = '',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'muted';
+  className?: string;
+}) {
+  return (
+    <div className={`min-w-[150px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 ${className}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+      <p className={`mt-1 text-sm font-semibold ${tone === 'muted' ? 'text-slate-700' : 'text-slate-900'}`}>{value}</p>
+    </div>
+  );
+}
+
 export default function Q1Q2AnnotationApp() {
   const [dataset, setDataset] = useState<ManualCheckDataset | null>(null);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
@@ -132,6 +152,7 @@ export default function Q1Q2AnnotationApp() {
   const currentSampleSaveLabel = currentSampleSavedAt
     ? `Saved ${currentSampleSavedAt.toLocaleString()}`
     : 'Current item not saved yet';
+  const progressPercent = activeEntry ? ((currentItemIndex + 1) / activeEntry.itemCount) * 100 : 0;
 
   useEffect(() => {
     if (!dataset) {
@@ -493,14 +514,14 @@ export default function Q1Q2AnnotationApp() {
         ) : (
           <div className="space-y-6">
             <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-              <CardHeader className="border-b border-slate-100 bg-white">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2 text-slate-900">
+              <CardHeader className="border-b border-slate-100 bg-white px-5 py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <CardTitle className="flex items-center gap-2 text-base text-slate-900">
                       <FolderTree className="h-5 w-5 text-slate-700" />
                       Dataset workbench
                     </CardTitle>
-                    <CardDescription className="text-slate-600">
+                    <CardDescription className="text-sm text-slate-600">
                       Imported from <code>{dataset.rootName}</code> with {dataset.entries.length} discovered dataset views.
                     </CardDescription>
                   </div>
@@ -515,148 +536,168 @@ export default function Q1Q2AnnotationApp() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-5 pt-6">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Track</label>
-                      <Select value={activeEntry?.track} onValueChange={handleTrackChange}>
-                        <SelectTrigger className="h-11 rounded-xl border-slate-300 bg-white">
-                          <SelectValue placeholder="Select track" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {trackOptions.map((track) => (
-                            <SelectItem key={track} value={track}>
-                              {TRACK_LABELS[track]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Task</label>
-                      <Select value={activeEntry?.task} onValueChange={handleTaskChange}>
-                        <SelectTrigger className="h-11 rounded-xl border-slate-300 bg-white">
-                          <SelectValue placeholder="Select task" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {taskOptions.map((task) => (
-                            <SelectItem key={task} value={task}>
-                              {TASK_LABELS[task]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ability</label>
-                      <Select
-                        value={activeEntry?.ability ?? 'none'}
-                        onValueChange={handleAbilityChange}
-                        disabled={activeEntry?.task !== 'task4'}
-                      >
-                        <SelectTrigger className="h-11 rounded-xl border-slate-300 bg-white">
-                          <SelectValue placeholder="No ability" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {activeEntry?.task !== 'task4' ? (
-                            <SelectItem value="none">Not applicable</SelectItem>
-                          ) : (
-                            abilityOptions.map((ability) => (
-                              <SelectItem key={ability} value={ability}>
-                                {ABILITY_LABELS[ability]}
+              <CardContent className="space-y-4 px-5 pt-4">
+                <div className="flex flex-wrap items-end gap-3">
+                      <div className="min-w-[220px] flex-1 space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Track</label>
+                        <Select value={activeEntry?.track} onValueChange={handleTrackChange}>
+                          <SelectTrigger className="h-10 rounded-xl border-slate-300 bg-white">
+                            <SelectValue placeholder="Select track" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trackOptions.map((track) => (
+                              <SelectItem key={track} value={track}>
+                                {TRACK_LABELS[track]}
                               </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current position</label>
-                      <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
-                        {activeEntry ? `${currentItemIndex + 1} / ${activeEntry.itemCount}` : '0 / 0'}
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Item navigation</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentItemIndex((value) => Math.max(value - 1, 0))}
-                        disabled={!activeEntry || currentItemIndex === 0 || isLoadingItem}
-                        className="gap-2 rounded-xl border-slate-300 bg-white"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        Previous
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentItemIndex((value) =>
-                            activeEntry ? Math.min(value + 1, activeEntry.itemCount - 1) : value,
-                          )
-                        }
-                        disabled={
-                          !activeEntry ||
-                          !activeEntry.itemCount ||
-                          currentItemIndex >= activeEntry.itemCount - 1 ||
-                          isLoadingItem
-                        }
-                        className="gap-2 rounded-xl border-slate-300 bg-white"
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <Input
-                        value={jumpInput}
-                        onChange={(event) => setJumpInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            handleJump();
-                          }
-                        }}
-                        placeholder="Jump to item #"
-                        className="h-11 rounded-xl border-slate-300 bg-white"
-                      />
-                      <Button type="button" variant="outline" onClick={handleJump} className="rounded-xl border-slate-300 bg-white">
-                        Go
-                      </Button>
-                    </div>
-                  </div>
+                      <div className="min-w-[220px] flex-1 space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Task</label>
+                        <Select value={activeEntry?.task} onValueChange={handleTaskChange}>
+                          <SelectTrigger className="h-10 rounded-xl border-slate-300 bg-white">
+                            <SelectValue placeholder="Select task" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {taskOptions.map((task) => (
+                              <SelectItem key={task} value={task}>
+                                {TASK_LABELS[task]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="min-w-[220px] flex-1 space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ability</label>
+                        <Select
+                          value={activeEntry?.ability ?? 'none'}
+                          onValueChange={handleAbilityChange}
+                          disabled={activeEntry?.task !== 'task4'}
+                        >
+                          <SelectTrigger className="h-10 rounded-xl border-slate-300 bg-white">
+                            <SelectValue placeholder="No ability" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {activeEntry?.task !== 'task4' ? (
+                              <SelectItem value="none">Not applicable</SelectItem>
+                            ) : (
+                              abilityOptions.map((ability) => (
+                                <SelectItem key={ability} value={ability}>
+                                  {ABILITY_LABELS[ability]}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current view</p>
-                    <p className="mt-2 text-sm font-medium text-slate-900">{activeEntry ? getEntryLabel(activeEntry) : 'No selection'}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Manifest rows</p>
-                    <p className="mt-2 text-sm font-medium text-slate-900">{activeEntry?.itemCount ?? 0}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Session</p>
-                    <p className="mt-2 truncate text-sm font-medium text-slate-900">{currentItem?.manifestRow.session_id ?? 'Loading...'}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Assigned model</p>
-                    <p className="mt-2 truncate text-sm font-medium text-slate-900">{currentAssignedModel ?? 'Not assigned'}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Saved drafts</p>
-                    <p className="mt-2 truncate text-sm font-medium text-slate-900">{Object.keys(savedAnnotations).length}</p>
-                  </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                        <div className="space-y-2 xl:min-w-[240px]">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current progress</p>
+                          <div className="flex items-end gap-3">
+                            <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                              {activeEntry ? `${currentItemIndex + 1} / ${activeEntry.itemCount}` : '0 / 0'}
+                            </p>
+                            <p className="pb-1 text-xs text-slate-500">
+                              {activeEntry ? `${progressPercent.toFixed(1)}% through this view` : 'No active view'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col gap-3 xl:max-w-[700px]">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentItemIndex((value) => Math.max(value - 1, 0))}
+                              disabled={!activeEntry || currentItemIndex === 0 || isLoadingItem}
+                              className="gap-2 rounded-xl border-slate-300 bg-white"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                              Previous
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setCurrentItemIndex((value) =>
+                                  activeEntry ? Math.min(value + 1, activeEntry.itemCount - 1) : value,
+                                )
+                              }
+                              disabled={
+                                !activeEntry ||
+                                !activeEntry.itemCount ||
+                                currentItemIndex >= activeEntry.itemCount - 1 ||
+                                isLoadingItem
+                              }
+                              className="gap-2 rounded-xl border-slate-300 bg-white"
+                            >
+                              Next
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              value={jumpInput}
+                              onChange={(event) => setJumpInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  handleJump();
+                                }
+                              }}
+                              placeholder="Jump to item #"
+                              className="h-10 rounded-xl border-slate-300 bg-white"
+                            />
+                            <Button type="button" variant="outline" onClick={handleJump} className="rounded-xl border-slate-300 bg-white">
+                              Go
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <Progress value={progressPercent} className="mt-3 h-2 bg-slate-200 [&>div]:bg-slate-900" />
+                </div>
+
+                <div className="flex flex-wrap gap-3 lg:flex-nowrap">
+                  <SummaryStat
+                    label="Current view"
+                    value={activeEntry ? getEntryLabel(activeEntry) : 'No selection'}
+                    className="min-w-[220px] flex-[1.35]"
+                  />
+                  <SummaryStat
+                    label="Annotated"
+                    value={`${entrySavedCount} / ${activeEntry?.itemCount ?? 0}`}
+                    className="flex-1"
+                  />
+                  <SummaryStat
+                    label="Session"
+                    value={currentItem?.manifestRow.session_id ?? 'Loading...'}
+                    tone="muted"
+                    className="min-w-[190px] flex-1"
+                  />
+                  <SummaryStat
+                    label="Assigned model"
+                    value={currentAssignedModel ?? 'Not assigned'}
+                    tone="muted"
+                    className="min-w-[180px] flex-1"
+                  />
+                  <SummaryStat
+                    label="Canonical ID"
+                    value={currentItem?.manifestRow.canonical_id ?? 'N/A'}
+                    tone="muted"
+                    className="min-w-[180px] flex-1"
+                  />
+                  <SummaryStat
+                    label="Autosave"
+                    value={lastSavedTime ? `Local backup ${lastSavedTime.toLocaleTimeString()}` : 'No local backup'}
+                    tone="muted"
+                    className="min-w-[190px] flex-1"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -737,8 +778,8 @@ export default function Q1Q2AnnotationApp() {
               <div
                 className="min-w-0 space-y-4"
                 style={{
-                  flex: '0 0 500px',
-                  width: '500px',
+                  flex: '0 0 clamp(420px, 30vw, 580px)',
+                  width: 'clamp(420px, 30vw, 580px)',
                   maxHeight: 'calc(100vh - 5rem)',
                   overflowY: 'auto',
                   paddingRight: '0.25rem',
@@ -759,53 +800,6 @@ export default function Q1Q2AnnotationApp() {
                     onSave={handleSaveAnnotation}
                   />
                 ) : null}
-
-                <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-                  <CardHeader className="border-b border-slate-100 bg-white">
-                    <CardTitle className="text-slate-900">Session metadata</CardTitle>
-                    <CardDescription className="text-slate-600">
-                      Manifest-level identity and draft status for the current item.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-3 pt-6 text-sm text-slate-700 sm:grid-cols-2">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Track</p>
-                      <p className="mt-1 font-medium text-slate-900">
-                        {activeEntry ? TRACK_LABELS[activeEntry.track] : 'N/A'}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Task</p>
-                      <p className="mt-1 font-medium text-slate-900">
-                        {activeEntry ? getEntryLabel(activeEntry) : 'N/A'}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Canonical ID</p>
-                      <p className="mt-1 font-medium text-slate-900">
-                        {currentItem?.manifestRow.canonical_id ?? 'N/A'}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Stratum</p>
-                      <p className="mt-1 font-medium text-slate-900">
-                        {currentItem?.manifestRow.stratum ?? 'N/A'}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Draft key</p>
-                      <p className="mt-1 break-all font-mono text-xs text-slate-700">
-                        {currentDraftKey ?? 'N/A'}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Autosave status</p>
-                      <p className="mt-1 font-medium text-slate-900">
-                        {lastSavedTime ? `Local backup at ${lastSavedTime.toLocaleTimeString()}` : 'No local backup yet'}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           </div>
