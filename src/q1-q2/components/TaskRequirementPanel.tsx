@@ -18,8 +18,8 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-      <CardHeader className="bg-white px-4 py-4">
+    <Card className="overflow-hidden border-slate-200/90 bg-white/95 shadow-md ring-slate-200/45 backdrop-blur-sm">
+      <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-white to-indigo-50/45 px-5 py-4 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2 text-base text-slate-900">
@@ -44,7 +44,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
       </CardHeader>
 
       {isOpen ? (
-        <CardContent className="grid gap-3 border-t border-slate-100 p-4 2xl:grid-cols-2">
+        <CardContent className="grid gap-4 border-t border-slate-100/80 px-5 py-5 sm:px-6 2xl:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <Eye className="h-4 w-4 text-slate-600" />

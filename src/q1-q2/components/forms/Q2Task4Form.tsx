@@ -20,6 +20,15 @@ import type {
   Q2Task4SubAnnotation,
   Q2Task4VisibleModeAnnotation,
 } from '../../types';
+import {
+  annotationFormArtifactPanelClass,
+  annotationFormCardClass,
+  annotationFormContentClass,
+  annotationFormContextPanelClass,
+  annotationFormFooterClass,
+  annotationFormHeaderClass,
+  annotationValidationErrorClass,
+} from './annotationFormShell';
 import { CheckboxField, NumberField, RadioField, TextAreaField } from './FormFields';
 
 interface QuerySeed {
@@ -303,8 +312,8 @@ export function Q2Task4Form({
   };
 
   return (
-    <Card className="min-w-0 overflow-hidden border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100">
+    <Card className={annotationFormCardClass}>
+      <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-slate-900">Annotation panel</CardTitle>
@@ -322,8 +331,8 @@ export function Q2Task4Form({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <CardContent className={annotationFormContentClass}>
+        <div className={annotationFormContextPanelClass}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-900">Evaluation mode</p>
@@ -345,7 +354,7 @@ export function Q2Task4Form({
         </div>
 
         <Tabs value={activeQueryId} onValueChange={setActiveQueryId} className="space-y-4">
-          <TabsList className="h-auto w-full flex-wrap justify-start">
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100/90 p-1.5 ring-1 ring-slate-200/40">
             {record.subAnnotations.map((item, index) => (
               <TabsTrigger
                 key={item.queryId}
@@ -365,7 +374,7 @@ export function Q2Task4Form({
 
             return (
               <TabsContent key={item.queryId} value={item.queryId} className="space-y-6">
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className={`space-y-3 ${annotationFormContextPanelClass}`}>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Active query
@@ -388,7 +397,7 @@ export function Q2Task4Form({
                 {mode === 'judge_visible' ? (
                   <>
                     {typeof seed?.judgeVisiblePayload !== 'undefined' ? (
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className={annotationFormArtifactPanelClass}>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Visible judge payload
                         </p>
@@ -482,16 +491,16 @@ export function Q2Task4Form({
           placeholder="Optional note across all responses in this session."
         />
 
-        {validationError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {validationError}
-          </div>
-        ) : null}
+        <div className={annotationFormFooterClass}>
+          {validationError ? (
+            <div className={annotationValidationErrorClass}>{validationError}</div>
+          ) : null}
 
-        <div className="flex justify-end">
-          <Button type="button" onClick={handleSave}>
-            Save annotation
-          </Button>
+          <div className="flex justify-end">
+            <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
+              Save annotation
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

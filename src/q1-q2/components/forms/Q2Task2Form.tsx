@@ -18,6 +18,14 @@ import type {
   Q2Task2ReviewItemAnnotation,
   Q2Task2VisibleModeAnnotation,
 } from '../../types';
+import {
+  annotationFormCardClass,
+  annotationFormContentClass,
+  annotationFormContextPanelClass,
+  annotationFormFooterClass,
+  annotationFormHeaderClass,
+  annotationValidationErrorClass,
+} from './annotationFormShell';
 import { CheckboxField, NumberField, RadioField, TextAreaField } from './FormFields';
 
 interface ReviewSeed {
@@ -226,8 +234,8 @@ export function Q2Task2Form({
   };
 
   return (
-    <Card className="min-w-0 overflow-hidden border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100">
+    <Card className={annotationFormCardClass}>
+      <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-slate-900">Annotation panel</CardTitle>
@@ -240,8 +248,8 @@ export function Q2Task2Form({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <CardContent className={annotationFormContentClass}>
+        <div className={annotationFormContextPanelClass}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-900">Evaluation mode</p>
@@ -313,7 +321,7 @@ export function Q2Task2Form({
             />
 
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-slate-900">Review items</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Review items</p>
               <div className="space-y-3">
                 {reviewSeeds.map((seed) => {
                   const annotation =
@@ -330,7 +338,7 @@ export function Q2Task2Form({
                   return (
                     <div
                       key={`${seed.reviewKind}:${seed.reviewId}`}
-                      className="rounded-xl border border-slate-200 bg-white p-4"
+                      className="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm ring-1 ring-slate-200/25"
                     >
                       <div className="mb-3 flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
@@ -416,16 +424,16 @@ export function Q2Task2Form({
           </>
         )}
 
-        {validationError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {validationError}
-          </div>
-        ) : null}
+        <div className={annotationFormFooterClass}>
+          {validationError ? (
+            <div className={annotationValidationErrorClass}>{validationError}</div>
+          ) : null}
 
-        <div className="flex justify-end">
-          <Button type="button" onClick={handleSave}>
-            Save annotation
-          </Button>
+          <div className="flex justify-end">
+            <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
+              Save annotation
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

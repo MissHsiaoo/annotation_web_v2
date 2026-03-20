@@ -13,6 +13,7 @@ import type { EvaluationMode, LoadedManualCheckItem } from '../../types';
 import { JsonPreviewBlock } from '../JsonPreviewBlock';
 import { ConversationBlock } from './ConversationBlock';
 import { MemoryListBlock } from './MemoryListBlock';
+import { sampleBlockCardClass, sampleBlockContentClass, sampleBlockHeaderClass } from './sampleBlockStyles';
 import { TextBlock } from './TextBlock';
 
 type Dictionary = Record<string, any>;
@@ -109,13 +110,15 @@ function DisplaySection({
         : 'border-violet-200 bg-violet-50/60';
 
   return (
-    <section className={`rounded-3xl border p-4 ${toneClasses}`}>
-      <div className="mb-4">
-        <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700">
+    <section
+      className={`rounded-3xl border p-6 shadow-md ring-1 ring-black/[0.05] sm:p-7 ${toneClasses}`}
+    >
+      <div className="mb-6">
+        <span className="inline-flex rounded-full border border-white/70 bg-white/95 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm">
           {title}
         </span>
       </div>
-      <div className="space-y-4">{children}</div>
+      <div className="space-y-6">{children}</div>
     </section>
   );
 }
@@ -449,11 +452,11 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
   };
 
   return (
-    <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-white/90 shadow-sm">
-      <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white to-slate-50">
+    <Card className={sampleBlockCardClass}>
+      <CardHeader className={sampleBlockHeaderClass}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="text-slate-900">Sample display</CardTitle>
+            <CardTitle className="text-lg font-semibold text-slate-900">Sample display</CardTitle>
             <CardDescription className="max-w-3xl text-slate-600">
               Task-aware display for the currently selected sample. Translation is optional and only affects the left-side display.
             </CardDescription>
@@ -470,7 +473,7 @@ export function TaskSampleDisplay({ loadedItem, evaluationMode }: TaskSampleDisp
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="min-w-0 space-y-4 pt-6">
+      <CardContent className={`min-w-0 space-y-6 ${sampleBlockContentClass}`}>
         {renderTrackSpecificBlocks()}
       </CardContent>
     </Card>

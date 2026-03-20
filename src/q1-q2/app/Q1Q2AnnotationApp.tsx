@@ -25,6 +25,7 @@ import {
 } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Progress } from '../../components/ui/progress';
+import { Separator } from '../../components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -37,6 +38,11 @@ import { AnnotationPane } from '../components/AnnotationPane';
 import { getRequirementConfig } from '../config/requirements';
 import { FileSourceSelector } from '../components/FileSourceSelector';
 import { TaskRequirementPanel } from '../components/TaskRequirementPanel';
+import {
+  sampleBlockCardClass,
+  sampleBlockContentClass,
+  sampleBlockHeaderClass,
+} from '../components/display/sampleBlockStyles';
 import { TaskSampleDisplay } from '../components/display/TaskSampleDisplay';
 import { buildUploadedFileIndex } from '../data/indexers/buildUploadedFileIndex';
 import {
@@ -105,9 +111,15 @@ function SummaryStat({
   className?: string;
 }) {
   return (
-    <div className={`min-w-[150px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 ${className}`}>
+    <div
+      className={`min-h-[4.5rem] min-w-0 flex-1 rounded-2xl border border-slate-200/90 bg-white px-5 py-4 shadow-sm ring-1 ring-slate-950/[0.04] transition-[box-shadow,transform] duration-200 hover:shadow-md ${className}`}
+    >
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-      <p className={`mt-1 text-sm font-semibold ${tone === 'muted' ? 'text-slate-700' : 'text-slate-900'}`}>{value}</p>
+      <p
+        className={`mt-2 break-words text-sm font-semibold leading-snug ${tone === 'muted' ? 'text-slate-700' : 'text-slate-900'}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -411,10 +423,10 @@ export default function Q1Q2AnnotationApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100/95 via-white to-indigo-50/40 px-4 py-8 sm:px-6 lg:px-10">
       <Toaster position="top-right" />
-      <div className="mx-auto max-w-[1680px] space-y-6">
-        <header className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mx-auto max-w-[1680px] space-y-8">
+        <header className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-7 shadow-md ring-1 ring-slate-200/50 backdrop-blur-sm sm:p-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -438,24 +450,29 @@ export default function Q1Q2AnnotationApp() {
             </div>
 
             {dataset ? (
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                <Button type="button" variant="outline" onClick={handleReset} className="gap-2 rounded-xl border-slate-300 bg-white">
+              <div className="flex flex-wrap gap-3 lg:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleReset}
+                  className="gap-2 rounded-xl border-slate-300 bg-white shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow"
+                >
                   <RefreshCw className="h-4 w-4" />
                   Reset import
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   onClick={handleDownloadAnnotations}
                   disabled={Object.keys(savedAnnotations).length === 0}
-                  className="gap-2 rounded-xl border-slate-300 bg-white"
+                  className="gap-2 rounded-xl shadow-sm transition-all hover:shadow-md"
                 >
                   <Archive className="h-4 w-4" />
                   Download annotations
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() =>
                     currentItem
                       ? downloadJson(
@@ -465,7 +482,7 @@ export default function Q1Q2AnnotationApp() {
                       : null
                   }
                   disabled={!currentItem}
-                  className="gap-2 rounded-xl border-slate-300 bg-white"
+                  className="gap-2 rounded-xl shadow-sm transition-all hover:shadow-md"
                 >
                   <ArrowDownToLine className="h-4 w-4" />
                   Download current item
@@ -479,9 +496,9 @@ export default function Q1Q2AnnotationApp() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
             <FileSourceSelector onFolderSelected={handleDatasetImport} isLoading={isImporting} />
 
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader className="border-b border-slate-100">
-                <CardTitle className="flex items-center gap-2 text-slate-900">
+            <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-md ring-1 ring-slate-200/35">
+              <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-white to-indigo-50/40 px-5 py-5 sm:px-6">
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                   <Database className="h-5 w-5 text-slate-700" />
                   Expected dataset shape
                 </CardTitle>
@@ -490,19 +507,19 @@ export default function Q1Q2AnnotationApp() {
                   workspace.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 pt-6 text-sm text-slate-600">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="mb-2 font-medium text-slate-900">Key files</p>
-                  <ul className="list-disc space-y-1 pl-4">
+              <CardContent className="space-y-4 px-5 pb-6 pt-6 text-sm text-slate-600 sm:px-6">
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Key files</p>
+                  <ul className="list-disc space-y-1.5 pl-4">
                     <li><code>run_summary.json</code></li>
                     <li><code>benchmark_construction_check_data/**/manifest.json</code></li>
                     <li><code>LLM_as_judge_Human_Alignment_data/**/manifest.json</code></li>
                     <li><code>sessions/&lt;session&gt;__&lt;canonical&gt;/item.json</code></li>
                   </ul>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="mb-2 font-medium text-slate-900">What this slice proves</p>
-                  <ul className="list-disc space-y-1 pl-4">
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-200/25">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">What this slice proves</p>
+                  <ul className="list-disc space-y-1.5 pl-4">
                     <li>The app can discover Q1/Q2 dataset views from the folder.</li>
                     <li>The app can map manifest rows to the correct <code>item.json</code>.</li>
                     <li>The app can browse samples without eagerly reading the whole dataset.</li>
@@ -512,9 +529,9 @@ export default function Q1Q2AnnotationApp() {
             </Card>
           </div>
         ) : (
-          <div className="space-y-6">
-            <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-              <CardHeader className="border-b border-slate-100 bg-white px-5 py-4">
+          <div className="space-y-8">
+            <Card className="overflow-hidden border-slate-200/90 bg-white/95 shadow-md ring-1 ring-slate-200/40 backdrop-blur-sm">
+              <CardHeader className="border-b border-slate-100/90 bg-gradient-to-r from-white to-slate-50/80 px-6 py-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <CardTitle className="flex items-center gap-2 text-base text-slate-900">
@@ -536,8 +553,9 @@ export default function Q1Q2AnnotationApp() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 px-5 pt-4">
-                <div className="flex flex-wrap items-end gap-3">
+              <CardContent className="space-y-6 px-6 pb-6 pt-5">
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50/60 p-5 shadow-inner ring-1 ring-slate-200/25">
+                  <div className="flex flex-wrap items-end gap-4">
                       <div className="min-w-[220px] flex-1 space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Track</label>
                         <Select value={activeEntry?.track} onValueChange={handleTrackChange}>
@@ -593,9 +611,10 @@ export default function Q1Q2AnnotationApp() {
                           </SelectContent>
                         </Select>
                       </div>
+                  </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-6 shadow-sm ring-1 ring-slate-200/30">
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                         <div className="space-y-2 xl:min-w-[240px]">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current progress</p>
@@ -616,14 +635,14 @@ export default function Q1Q2AnnotationApp() {
                               size="sm"
                               onClick={() => setCurrentItemIndex((value) => Math.max(value - 1, 0))}
                               disabled={!activeEntry || currentItemIndex === 0 || isLoadingItem}
-                              className="gap-2 rounded-xl border-slate-300 bg-white"
+                              className="gap-2 rounded-xl border-slate-300 bg-white shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50"
                             >
                               <ChevronLeft className="h-4 w-4" />
                               Previous
                             </Button>
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="default"
                               size="sm"
                               onClick={() =>
                                 setCurrentItemIndex((value) =>
@@ -636,7 +655,7 @@ export default function Q1Q2AnnotationApp() {
                                 currentItemIndex >= activeEntry.itemCount - 1 ||
                                 isLoadingItem
                               }
-                              className="gap-2 rounded-xl border-slate-300 bg-white"
+                              className="gap-2 rounded-xl shadow-md transition-all hover:shadow-lg"
                             >
                               Next
                               <ChevronRight className="h-4 w-4" />
@@ -652,9 +671,14 @@ export default function Q1Q2AnnotationApp() {
                                 }
                               }}
                               placeholder="Jump to item #"
-                              className="h-10 rounded-xl border-slate-300 bg-white"
+                              className="h-10 min-w-[8rem] flex-1 rounded-xl border-slate-300 bg-white shadow-sm transition-shadow focus-visible:shadow-md"
                             />
-                            <Button type="button" variant="outline" onClick={handleJump} className="rounded-xl border-slate-300 bg-white">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={handleJump}
+                              className="rounded-xl shadow-sm transition-all hover:shadow-md"
+                            >
                               Go
                             </Button>
                           </div>
@@ -663,7 +687,7 @@ export default function Q1Q2AnnotationApp() {
                       <Progress value={progressPercent} className="mt-3 h-2 bg-slate-200 [&>div]:bg-slate-900" />
                 </div>
 
-                <div className="flex flex-wrap gap-3 lg:flex-nowrap">
+                <div className="flex flex-wrap gap-4 lg:flex-nowrap">
                   <SummaryStat
                     label="Current view"
                     value={activeEntry ? getEntryLabel(activeEntry) : 'No selection'}
@@ -723,23 +747,12 @@ export default function Q1Q2AnnotationApp() {
               </Card>
             ) : null}
 
-            <div
-              className="grid items-start gap-6"
-              style={{
-                gridTemplateColumns: 'minmax(0, 6fr) minmax(0, 4fr)',
-                alignItems: 'flex-start',
-              }}
-            >
-              <div
-                className="min-w-0 space-y-4"
-                style={{
-                  minWidth: 0,
-                }}
-              >
+            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)] lg:gap-10">
+              <div className="min-w-0 space-y-6">
                 {isLoadingItem ? (
-                  <Card className="min-w-0 overflow-hidden border-slate-200 shadow-sm">
-                    <CardHeader className="border-b border-slate-100">
-                      <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <Card className={sampleBlockCardClass}>
+                    <CardHeader className={sampleBlockHeaderClass}>
+                      <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                         <FileJson className="h-5 w-5 text-slate-700" />
                         Sample display
                       </CardTitle>
@@ -747,8 +760,8 @@ export default function Q1Q2AnnotationApp() {
                         Loading the task-aware display for the current item.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+                    <CardContent className={sampleBlockContentClass}>
+                      <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-50/80 shadow-inner ring-1 ring-slate-200/20">
                         <div className="flex items-center gap-3 text-slate-600">
                           <LoaderCircle className="h-5 w-5 animate-spin" />
                           Loading current item...
@@ -759,15 +772,15 @@ export default function Q1Q2AnnotationApp() {
                 ) : currentItem ? (
                   <TaskSampleDisplay loadedItem={currentItem} evaluationMode={evaluationMode} />
                 ) : (
-                  <Card className="min-w-0 overflow-hidden border-slate-200 shadow-sm">
-                    <CardHeader className="border-b border-slate-100">
-                      <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <Card className={sampleBlockCardClass}>
+                    <CardHeader className={sampleBlockHeaderClass}>
+                      <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                         <FileJson className="h-5 w-5 text-slate-700" />
                         Sample display
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
+                    <CardContent className={sampleBlockContentClass}>
+                      <div className="rounded-2xl border border-dashed border-slate-300/90 bg-slate-50/80 p-8 text-center text-sm text-slate-600 shadow-inner ring-1 ring-slate-200/20">
                         No item is currently loaded.
                       </div>
                     </CardContent>
@@ -776,17 +789,13 @@ export default function Q1Q2AnnotationApp() {
               </div>
 
               <div
-                className="min-w-0 space-y-4"
-                style={{
-                  minWidth: 0,
-                  maxHeight: 'calc(100vh - 5rem)',
-                  overflowY: 'auto',
-                  paddingRight: '0.25rem',
-                  position: 'sticky',
-                  top: '1rem',
-                }}
+                className="min-w-0 space-y-6 rounded-2xl border border-slate-200/70 bg-white/80 p-5 shadow-md ring-1 ring-slate-200/35 backdrop-blur-md lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:p-6"
               >
                 {requirement ? <TaskRequirementPanel requirement={requirement} /> : null}
+
+                {requirement && activeEntry ? (
+                  <Separator className="bg-slate-200/80" />
+                ) : null}
 
                 {activeEntry ? (
                   <AnnotationPane

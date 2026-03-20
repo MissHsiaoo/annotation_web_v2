@@ -10,6 +10,13 @@ import {
   CardTitle,
 } from '../../../components/ui/card';
 import type { Q1Task3Annotation } from '../../types';
+import {
+  annotationFormCardClass,
+  annotationFormContentClass,
+  annotationFormFooterClass,
+  annotationFormHeaderClass,
+  annotationValidationErrorClass,
+} from './annotationFormShell';
 import { RadioField, TextAreaField } from './FormFields';
 
 const RELEVANCE_OPTIONS = [
@@ -80,8 +87,8 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
   };
 
   return (
-    <Card className="min-w-0 overflow-hidden border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100">
+    <Card className={annotationFormCardClass}>
+      <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-slate-900">Annotation panel</CardTitle>
@@ -94,7 +101,7 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
+      <CardContent className={annotationFormContentClass}>
         <RadioField
           label="Relevance level"
           value={formState.relevanceLevel}
@@ -167,16 +174,16 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
           placeholder="Optional extra note."
         />
 
-        {validationError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {validationError}
-          </div>
-        ) : null}
+        <div className={annotationFormFooterClass}>
+          {validationError ? (
+            <div className={annotationValidationErrorClass}>{validationError}</div>
+          ) : null}
 
-        <div className="flex justify-end">
-          <Button type="button" onClick={handleSave}>
-            Save annotation
-          </Button>
+          <div className="flex justify-end">
+            <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
+              Save annotation
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '../../../components/ui/card';
 import { Input } from '../../../components/ui/input';
+import { sampleBlockCardClass, sampleBlockContentClass, sampleBlockHeaderClass } from './sampleBlockStyles';
 import { TranslatedText } from './TranslatedText';
 
 interface MemoryListBlockProps {
@@ -63,11 +64,11 @@ export function MemoryListBlock({
   }
 
   return (
-    <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-white/90 shadow-sm">
-      <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white to-slate-50">
+    <Card className={sampleBlockCardClass}>
+      <CardHeader className={sampleBlockHeaderClass}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="text-slate-900">{title}</CardTitle>
+            <CardTitle className="text-base text-slate-900">{title}</CardTitle>
             {description ? <CardDescription className="text-slate-600">{description}</CardDescription> : null}
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -88,7 +89,7 @@ export function MemoryListBlock({
       </CardHeader>
 
       {isExpanded ? (
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className={`space-y-4 ${sampleBlockContentClass}`}>
           {searchable ? (
             <div className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -96,7 +97,7 @@ export function MemoryListBlock({
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search this list"
-                className="pl-9"
+                className="rounded-xl border-slate-300 bg-white pl-9 shadow-sm"
               />
             </div>
           ) : null}

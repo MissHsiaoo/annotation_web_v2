@@ -19,8 +19,8 @@ interface RadioFieldProps {
 
 export function RadioField({ label, value, options, onChange }: RadioFieldProps) {
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-      <p className="text-sm font-semibold text-slate-900">{label}</p>
+    <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <RadioGroup value={value} onValueChange={onChange} className="grid gap-2 sm:grid-cols-2">
         {options.map((option) => (
           <Label
@@ -59,8 +59,8 @@ export function CheckboxField({ label, values, options, onChange }: CheckboxFiel
   };
 
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-      <p className="text-sm font-semibold text-slate-900">{label}</p>
+    <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {options.map((option) => {
           const isChecked = values.includes(option.value);
@@ -101,8 +101,8 @@ interface TextAreaFieldProps {
 
 export function TextAreaField({ label, value, onChange, placeholder }: TextAreaFieldProps) {
   return (
-    <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-      <p className="text-sm font-semibold text-slate-900">{label}</p>
+    <div className="space-y-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <Textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -123,8 +123,8 @@ interface NumberFieldProps {
 
 export function NumberField({ label, value, onChange, min = 0, max = 100 }: NumberFieldProps) {
   return (
-    <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-      <p className="text-sm font-semibold text-slate-900">{label}</p>
+    <div className="space-y-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <Input
         type="number"
         min={min}

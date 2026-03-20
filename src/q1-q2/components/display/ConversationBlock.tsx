@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../components/ui/card';
+import { sampleBlockCardClass, sampleBlockContentClass, sampleBlockHeaderClass } from './sampleBlockStyles';
 import { TranslatedText } from './TranslatedText';
 
 interface ConversationTurn {
@@ -33,12 +34,12 @@ export function ConversationBlock({
   }
 
   return (
-    <Card className="min-w-0 overflow-hidden border-slate-200/80 bg-white/90 shadow-sm">
-      <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white to-slate-50">
-        <CardTitle className="text-slate-900">{title}</CardTitle>
+    <Card className={sampleBlockCardClass}>
+      <CardHeader className={sampleBlockHeaderClass}>
+        <CardTitle className="text-base text-slate-900">{title}</CardTitle>
         {description ? <CardDescription className="text-slate-600">{description}</CardDescription> : null}
       </CardHeader>
-      <CardContent className="max-h-[720px] overflow-y-auto pt-6">
+      <CardContent className={`max-h-[720px] overflow-y-auto ${sampleBlockContentClass}`}>
         <div className="mx-auto max-w-[1040px] space-y-4">
         {turns.map((turn, index) => {
           const isUser = turn.role === 'user';
