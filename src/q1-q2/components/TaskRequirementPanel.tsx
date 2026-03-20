@@ -44,7 +44,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
       </CardHeader>
 
       {isOpen ? (
-        <CardContent className="grid gap-3 border-t border-slate-100 p-4 lg:grid-cols-2">
+        <CardContent className="grid gap-3 border-t border-slate-100 p-4 2xl:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <Eye className="h-4 w-4 text-slate-600" />

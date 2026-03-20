@@ -724,16 +724,16 @@ export default function Q1Q2AnnotationApp() {
             ) : null}
 
             <div
-              className="flex items-start gap-6"
+              className="grid items-start gap-6"
               style={{
+                gridTemplateColumns: 'minmax(0, 6fr) minmax(0, 4fr)',
                 alignItems: 'flex-start',
               }}
             >
               <div
                 className="min-w-0 space-y-4"
                 style={{
-                  flex: '1 1 0%',
-                  width: '0',
+                  minWidth: 0,
                 }}
               >
                 {isLoadingItem ? (
@@ -778,8 +778,7 @@ export default function Q1Q2AnnotationApp() {
               <div
                 className="min-w-0 space-y-4"
                 style={{
-                  flex: '0 0 clamp(420px, 30vw, 580px)',
-                  width: 'clamp(420px, 30vw, 580px)',
+                  minWidth: 0,
                   maxHeight: 'calc(100vh - 5rem)',
                   overflowY: 'auto',
                   paddingRight: '0.25rem',
