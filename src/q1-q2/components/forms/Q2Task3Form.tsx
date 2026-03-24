@@ -24,6 +24,9 @@ import {
   annotationFormFooterClass,
   annotationFormHeaderClass,
   annotationValidationErrorClass,
+  formatAnnotationSaveSummary,
+  isBoundedInteger,
+  useAnnotationDraftSync,
 } from './annotationFormShell';
 import { CheckboxField, NumberField, RadioField, TextAreaField } from './FormFields';
 
@@ -63,11 +66,11 @@ function createEmptyVisibleAnnotation(): Q2Task3VisibleModeAnnotation {
     mode: 'judge_visible',
     status: 'draft',
     updatedAt: '',
-    alignmentVerdict: '',
-    usedMemoryCorrect: '',
-    scoreReasonable: '',
-    reasonSupportsJudgment: '',
-    scoreConsistentWithUsedMemory: '',
+    alignmentVerdict: 'aligned',
+    usedMemoryCorrect: 'yes',
+    scoreReasonable: 'yes',
+    reasonSupportsJudgment: 'yes',
+    scoreConsistentWithUsedMemory: 'yes',
     issueTypes: [],
     evidenceNote: '',
     revisionSuggestion: '',
@@ -80,8 +83,8 @@ function createEmptyBlindAnnotation(): Q2Task3BlindModeAnnotation {
     mode: 'blind_human_scoring',
     status: 'draft',
     updatedAt: '',
-    humanScore: null,
-    usedMemoryHumanJudgment: '',
+    humanScore: 100,
+    usedMemoryHumanJudgment: 'used',
     humanRationale: '',
     annotatorNote: '',
   };
@@ -100,6 +103,7 @@ interface Q2Task3FormProps {
   initialValue?: Q2Task3AnnotationRecord;
   mode: EvaluationMode;
   onModeChange: (mode: EvaluationMode) => void;
+  onDraftChange?: (annotation: Q2Task3AnnotationRecord) => void;
   onSave: (annotation: Q2Task3AnnotationRecord) => void;
 }
 
@@ -107,21 +111,58 @@ export function Q2Task3Form({
   initialValue,
   mode,
   onModeChange,
+  onDraftChange,
   onSave,
 }: Q2Task3FormProps) {
-  const [record, setRecord] = useState<Q2Task3AnnotationRecord>(initialValue ?? createEmptyRecord());
+  const startingValue = useMemo(() => initialValue ?? createEmptyRecord(), [initialValue]);
+  const [record, setRecord] = useState<Q2Task3AnnotationRecord>(startingValue);
   const [validationError, setValidationError] = useState('');
 
   const visibleAnnotation = record.annotationsByMode.judge_visible ?? createEmptyVisibleAnnotation();
   const blindAnnotation = record.annotationsByMode.blind_human_scoring ?? createEmptyBlindAnnotation();
 
-  const saveSummary = useMemo(() => {
-    if (record.updatedAt) {
-      return `Saved at ${new Date(record.updatedAt).toLocaleString()}`;
-    }
+  useAnnotationDraftSync(record, startingValue, onDraftChange);
 
-    return 'Not saved yet';
-  }, [record.updatedAt]);
+  const saveSummary = useMemo(
+    () => formatAnnotationSaveSummary(record.status, record.updatedAt),
+    [record.status, record.updatedAt],
+  );
+
+  const updateVisibleAnnotation = (patch: Partial<Q2Task3VisibleModeAnnotation>) => {
+    const updatedAt = new Date().toISOString();
+    setRecord((current) => ({
+      ...current,
+      status: 'draft',
+      updatedAt,
+      annotationsByMode: {
+        ...current.annotationsByMode,
+        judge_visible: {
+          ...(current.annotationsByMode.judge_visible ?? createEmptyVisibleAnnotation()),
+          ...patch,
+          status: 'draft',
+          updatedAt,
+        },
+      },
+    }));
+  };
+
+  const updateBlindAnnotation = (patch: Partial<Q2Task3BlindModeAnnotation>) => {
+    const updatedAt = new Date().toISOString();
+    setRecord((current) => ({
+      ...current,
+      status: 'draft',
+      updatedAt,
+      annotationsByMode: {
+        ...current.annotationsByMode,
+        blind_human_scoring: {
+          ...(current.annotationsByMode.blind_human_scoring ?? createEmptyBlindAnnotation()),
+          ...patch,
+          status: 'draft',
+          updatedAt,
+        },
+      },
+    }));
+  };
 
   const handleSave = () => {
     if (mode === 'judge_visible') {
@@ -130,18 +171,29 @@ export function Q2Task3Form({
         return;
       }
 
+      const nextTimestamp = new Date().toISOString();
       const nextVisible: Q2Task3VisibleModeAnnotation = {
         ...visibleAnnotation,
         status: 'saved',
-        updatedAt: new Date().toISOString(),
+        updatedAt: nextTimestamp,
       };
+      const nextModes = Object.fromEntries(
+        Object.entries(record.annotationsByMode).map(([modeKey, modeAnnotation]) => [
+          modeKey,
+          {
+            ...modeAnnotation,
+            status: 'saved',
+            updatedAt: nextTimestamp,
+          },
+        ]),
+      ) as Q2Task3AnnotationRecord['annotationsByMode'];
 
       const nextRecord: Q2Task3AnnotationRecord = {
         ...record,
         status: 'saved',
-        updatedAt: nextVisible.updatedAt,
+        updatedAt: nextTimestamp,
         annotationsByMode: {
-          ...record.annotationsByMode,
+          ...nextModes,
           judge_visible: nextVisible,
         },
       };
@@ -152,23 +204,34 @@ export function Q2Task3Form({
       return;
     }
 
-    if (blindAnnotation.humanScore === null || !blindAnnotation.humanRationale.trim()) {
-      setValidationError('Human score and rationale are required in blind scoring mode.');
+    if (!isBoundedInteger(blindAnnotation.humanScore) || !blindAnnotation.humanRationale.trim()) {
+      setValidationError('Human score must be an integer between 0 and 100, and rationale is required.');
       return;
     }
 
+    const nextTimestamp = new Date().toISOString();
     const nextBlind: Q2Task3BlindModeAnnotation = {
       ...blindAnnotation,
       status: 'saved',
-      updatedAt: new Date().toISOString(),
+      updatedAt: nextTimestamp,
     };
+    const nextModes = Object.fromEntries(
+      Object.entries(record.annotationsByMode).map(([modeKey, modeAnnotation]) => [
+        modeKey,
+        {
+          ...modeAnnotation,
+          status: 'saved',
+          updatedAt: nextTimestamp,
+        },
+      ]),
+    ) as Q2Task3AnnotationRecord['annotationsByMode'];
 
     const nextRecord: Q2Task3AnnotationRecord = {
       ...record,
       status: 'saved',
-      updatedAt: nextBlind.updatedAt,
+      updatedAt: nextTimestamp,
       annotationsByMode: {
-        ...record.annotationsByMode,
+        ...nextModes,
         blind_human_scoring: nextBlind,
       },
     };
@@ -222,16 +285,9 @@ export function Q2Task3Form({
               value={visibleAnnotation.alignmentVerdict}
               options={ALIGNMENT_OPTIONS}
               onChange={(value) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      alignmentVerdict: value as Q2Task3VisibleModeAnnotation['alignmentVerdict'],
-                    },
-                  },
-                }))
+                updateVisibleAnnotation({
+                  alignmentVerdict: value as Q2Task3VisibleModeAnnotation['alignmentVerdict'],
+                })
               }
             />
 
@@ -240,16 +296,9 @@ export function Q2Task3Form({
               value={visibleAnnotation.usedMemoryCorrect}
               options={BINARY_OPTIONS}
               onChange={(value) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      usedMemoryCorrect: value as Q2Task3VisibleModeAnnotation['usedMemoryCorrect'],
-                    },
-                  },
-                }))
+                updateVisibleAnnotation({
+                  usedMemoryCorrect: value as Q2Task3VisibleModeAnnotation['usedMemoryCorrect'],
+                })
               }
             />
 
@@ -258,16 +307,9 @@ export function Q2Task3Form({
               value={visibleAnnotation.scoreReasonable}
               options={TERNARY_OPTIONS}
               onChange={(value) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      scoreReasonable: value as Q2Task3VisibleModeAnnotation['scoreReasonable'],
-                    },
-                  },
-                }))
+                updateVisibleAnnotation({
+                  scoreReasonable: value as Q2Task3VisibleModeAnnotation['scoreReasonable'],
+                })
               }
             />
 
@@ -276,16 +318,10 @@ export function Q2Task3Form({
               value={visibleAnnotation.reasonSupportsJudgment}
               options={TERNARY_OPTIONS}
               onChange={(value) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      reasonSupportsJudgment: value as Q2Task3VisibleModeAnnotation['reasonSupportsJudgment'],
-                    },
-                  },
-                }))
+                updateVisibleAnnotation({
+                  reasonSupportsJudgment:
+                    value as Q2Task3VisibleModeAnnotation['reasonSupportsJudgment'],
+                })
               }
             />
 
@@ -294,17 +330,10 @@ export function Q2Task3Form({
               value={visibleAnnotation.scoreConsistentWithUsedMemory}
               options={BINARY_OPTIONS}
               onChange={(value) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      scoreConsistentWithUsedMemory:
-                        value as Q2Task3VisibleModeAnnotation['scoreConsistentWithUsedMemory'],
-                    },
-                  },
-                }))
+                updateVisibleAnnotation({
+                  scoreConsistentWithUsedMemory:
+                    value as Q2Task3VisibleModeAnnotation['scoreConsistentWithUsedMemory'],
+                })
               }
             />
 
@@ -312,53 +341,20 @@ export function Q2Task3Form({
               label="Issue types"
               values={visibleAnnotation.issueTypes}
               options={ISSUE_TYPE_OPTIONS}
-              onChange={(issueTypes) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      issueTypes,
-                    },
-                  },
-                }))
-              }
+              onChange={(issueTypes) => updateVisibleAnnotation({ issueTypes })}
             />
 
             <TextAreaField
               label="Evidence note"
               value={visibleAnnotation.evidenceNote ?? ''}
-              onChange={(evidenceNote) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      evidenceNote,
-                    },
-                  },
-                }))
-              }
+              onChange={(evidenceNote) => updateVisibleAnnotation({ evidenceNote })}
               placeholder="Explain why the judge is aligned or misaligned."
             />
 
             <TextAreaField
               label="Suggested correction"
               value={visibleAnnotation.revisionSuggestion ?? ''}
-              onChange={(revisionSuggestion) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    judge_visible: {
-                      ...visibleAnnotation,
-                      revisionSuggestion,
-                    },
-                  },
-                }))
-              }
+              onChange={(revisionSuggestion) => updateVisibleAnnotation({ revisionSuggestion })}
               placeholder="Write the corrected human judgment if needed."
             />
           </>
@@ -367,18 +363,7 @@ export function Q2Task3Form({
             <NumberField
               label="Human score"
               value={blindAnnotation.humanScore}
-              onChange={(humanScore) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    blind_human_scoring: {
-                      ...blindAnnotation,
-                      humanScore,
-                    },
-                  },
-                }))
-              }
+              onChange={(humanScore) => updateBlindAnnotation({ humanScore })}
             />
 
             <RadioField
@@ -386,35 +371,17 @@ export function Q2Task3Form({
               value={blindAnnotation.usedMemoryHumanJudgment}
               options={USED_MEMORY_OPTIONS}
               onChange={(value) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    blind_human_scoring: {
-                      ...blindAnnotation,
-                      usedMemoryHumanJudgment:
-                        value as Q2Task3BlindModeAnnotation['usedMemoryHumanJudgment'],
-                    },
-                  },
-                }))
+                updateBlindAnnotation({
+                  usedMemoryHumanJudgment:
+                    value as Q2Task3BlindModeAnnotation['usedMemoryHumanJudgment'],
+                })
               }
             />
 
             <TextAreaField
               label="Human rationale"
               value={blindAnnotation.humanRationale}
-              onChange={(humanRationale) =>
-                setRecord((current) => ({
-                  ...current,
-                  annotationsByMode: {
-                    ...current.annotationsByMode,
-                    blind_human_scoring: {
-                      ...blindAnnotation,
-                      humanRationale,
-                    },
-                  },
-                }))
-              }
+              onChange={(humanRationale) => updateBlindAnnotation({ humanRationale })}
               placeholder="Give your independent reasoning without relying on the visible judge output."
             />
           </>

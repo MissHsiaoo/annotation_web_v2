@@ -5,6 +5,7 @@ export type EvaluationMode = 'judge_visible' | 'blind_human_scoring';
 
 export interface UploadedFileIndex {
   rootName: string;
+  datasetFingerprint: string;
   filesByRelativePath: Map<string, File>;
   allRelativePaths: string[];
 }
@@ -46,9 +47,11 @@ export interface ManualCheckDatasetEntry {
 }
 
 export interface ManualCheckDataset {
-  sourceType: 'manual_check_data_folder';
+  sourceType: 'manual_check_data_folder' | 'merged_manual_check_bundle';
   rootName: string;
-  uploadedFileIndex: UploadedFileIndex;
+  datasetFingerprint: string;
+  uploadedFileIndex?: UploadedFileIndex;
+  bundledItemsByRelativePath?: Map<string, Record<string, unknown>>;
   runSummary?: ManualCheckRunSummary;
   entries: ManualCheckDatasetEntry[];
   warnings: string[];
@@ -105,11 +108,21 @@ export interface Q1Task2Annotation extends CommonAnnotationFields {
   newDialogueContainsUpdateSignal: TernaryAnswer | '';
   goldUpdateReasonable: TernaryAnswer | '';
   changedOnlyRelevantMemory: BinaryAnswer | '';
+  editableNewDialogue: Array<{
+    turnId: string;
+    role: string;
+    text: string;
+  }>;
+  editableUpdatedMemories: Array<{
+    memoryId: string;
+    value: string;
+  }>;
   issueTypes: string[];
 }
 
 export interface Q1Task3Annotation extends CommonAnnotationFields {
   formType: 'Q1:task3';
+  queryText: string;
   relevanceLevel: RelevanceLevel | '';
   hardWithoutTargetMemory: TernaryAnswer | '';
   answerableByCommonSense: BinaryAnswer | '';
@@ -275,3 +288,48 @@ export interface SavedAnnotationEntry {
   ability?: AbilityKey;
   annotation: AnySupportedAnnotation;
 }
+
+export interface AnnotationExportBundle {
+  bundleType: 'q1-q2-annotations';
+  version: 1;
+  sourceType: 'saved_annotation_bundle' | 'draft_annotation_bundle';
+  rootName: string;
+  datasetFingerprint: string;
+  generatedAt: string;
+  annotationStatus: 'saved' | 'draft';
+  annotations: SavedAnnotationEntry[];
+}
+
+export interface MergedDatasetBundleItem {
+  relativeItemPath: string;
+  manifestRow: ManualCheckManifestRow;
+  itemData: Record<string, unknown>;
+  annotation?: AnySupportedAnnotation;
+}
+
+export interface MergedDatasetBundleEntry {
+  id: string;
+  track: TrackKey;
+  task: TaskKey;
+  ability?: AbilityKey;
+  manifestPath: string;
+  baseDir: string;
+  title: string;
+  itemCount: number;
+  items: MergedDatasetBundleItem[];
+}
+
+export interface MergedDatasetExportBundle {
+  bundleType: 'q1-q2-merged-dataset';
+  version: 1;
+  sourceType: 'merged_manual_check_bundle';
+  rootName: string;
+  datasetFingerprint: string;
+  generatedAt: string;
+  runSummary?: ManualCheckRunSummary;
+  warnings: string[];
+  entries: MergedDatasetBundleEntry[];
+  annotations: SavedAnnotationEntry[];
+}
+
+export type ImportableBundle = AnnotationExportBundle | MergedDatasetExportBundle;

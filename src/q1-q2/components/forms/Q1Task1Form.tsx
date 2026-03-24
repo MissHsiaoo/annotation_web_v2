@@ -16,6 +16,9 @@ import {
   annotationFormFooterClass,
   annotationFormHeaderClass,
   annotationValidationErrorClass,
+  formatAnnotationSaveSummary,
+  useAnnotationDraftSync,
+  withDraftMeta,
 } from './annotationFormShell';
 import { CheckboxField, RadioField, TextAreaField } from './FormFields';
 
@@ -45,6 +48,7 @@ const ISSUE_TYPE_OPTIONS = [
 
 interface Q1Task1FormProps {
   initialValue?: Q1Task1Annotation;
+  onDraftChange?: (annotation: Q1Task1Annotation) => void;
   onSave: (annotation: Q1Task1Annotation) => void;
 }
 
@@ -53,10 +57,10 @@ function createEmptyAnnotation(): Q1Task1Annotation {
     formType: 'Q1:task1',
     status: 'draft',
     updatedAt: '',
-    overallVerdict: '',
-    hasDialogueEvidence: '',
-    overInference: '',
-    faithfulToOriginalMeaning: '',
+    overallVerdict: 'reasonable',
+    hasDialogueEvidence: 'yes',
+    overInference: 'no',
+    faithfulToOriginalMeaning: 'yes',
     issueTypes: [],
     evidenceNote: '',
     revisionSuggestion: '',
@@ -64,17 +68,17 @@ function createEmptyAnnotation(): Q1Task1Annotation {
   };
 }
 
-export function Q1Task1Form({ initialValue, onSave }: Q1Task1FormProps) {
-  const [formState, setFormState] = useState<Q1Task1Annotation>(initialValue ?? createEmptyAnnotation());
+export function Q1Task1Form({ initialValue, onDraftChange, onSave }: Q1Task1FormProps) {
+  const startingValue = useMemo(() => initialValue ?? createEmptyAnnotation(), [initialValue]);
+  const [formState, setFormState] = useState<Q1Task1Annotation>(startingValue);
   const [validationError, setValidationError] = useState('');
 
-  const saveSummary = useMemo(() => {
-    if (formState.updatedAt) {
-      return `Saved at ${new Date(formState.updatedAt).toLocaleString()}`;
-    }
+  useAnnotationDraftSync(formState, startingValue, onDraftChange);
 
-    return 'Not saved yet';
-  }, [formState.updatedAt]);
+  const saveSummary = useMemo(
+    () => formatAnnotationSaveSummary(formState.status, formState.updatedAt),
+    [formState.status, formState.updatedAt],
+  );
 
   const handleSave = () => {
     if (!formState.overallVerdict) {
@@ -122,55 +126,81 @@ export function Q1Task1Form({ initialValue, onSave }: Q1Task1FormProps) {
           label="Overall verdict"
           value={formState.overallVerdict}
           options={VERDICT_OPTIONS}
-          onChange={(value) => setFormState((current) => ({ ...current, overallVerdict: value as Q1Task1Annotation['overallVerdict'] }))}
+          onChange={(value) =>
+            setFormState((current) =>
+              withDraftMeta(current, {
+                overallVerdict: value as Q1Task1Annotation['overallVerdict'],
+              }),
+            )
+          }
         />
 
         <RadioField
           label="Does the memory have dialogue evidence?"
           value={formState.hasDialogueEvidence}
           options={TERNARY_OPTIONS}
-          onChange={(value) => setFormState((current) => ({ ...current, hasDialogueEvidence: value as Q1Task1Annotation['hasDialogueEvidence'] }))}
+          onChange={(value) =>
+            setFormState((current) =>
+              withDraftMeta(current, {
+                hasDialogueEvidence: value as Q1Task1Annotation['hasDialogueEvidence'],
+              }),
+            )
+          }
         />
 
         <RadioField
           label="Does the memory over-infer?"
           value={formState.overInference}
           options={BINARY_OPTIONS}
-          onChange={(value) => setFormState((current) => ({ ...current, overInference: value as Q1Task1Annotation['overInference'] }))}
+          onChange={(value) =>
+            setFormState((current) =>
+              withDraftMeta(current, {
+                overInference: value as Q1Task1Annotation['overInference'],
+              }),
+            )
+          }
         />
 
         <RadioField
           label="Is the memory faithful to the original meaning?"
           value={formState.faithfulToOriginalMeaning}
           options={TERNARY_OPTIONS}
-          onChange={(value) => setFormState((current) => ({ ...current, faithfulToOriginalMeaning: value as Q1Task1Annotation['faithfulToOriginalMeaning'] }))}
+          onChange={(value) =>
+            setFormState((current) =>
+              withDraftMeta(current, {
+                faithfulToOriginalMeaning: value as Q1Task1Annotation['faithfulToOriginalMeaning'],
+              }),
+            )
+          }
         />
 
         <CheckboxField
           label="Issue types"
           values={formState.issueTypes}
           options={ISSUE_TYPE_OPTIONS}
-          onChange={(issueTypes) => setFormState((current) => ({ ...current, issueTypes }))}
+          onChange={(issueTypes) => setFormState((current) => withDraftMeta(current, { issueTypes }))}
         />
 
         <TextAreaField
           label="Evidence note"
           value={formState.evidenceNote ?? ''}
-          onChange={(evidenceNote) => setFormState((current) => ({ ...current, evidenceNote }))}
+          onChange={(evidenceNote) => setFormState((current) => withDraftMeta(current, { evidenceNote }))}
           placeholder="Explain which part of the dialogue supports or conflicts with the memory."
         />
 
         <TextAreaField
           label="Revision suggestion"
           value={formState.revisionSuggestion ?? ''}
-          onChange={(revisionSuggestion) => setFormState((current) => ({ ...current, revisionSuggestion }))}
+          onChange={(revisionSuggestion) =>
+            setFormState((current) => withDraftMeta(current, { revisionSuggestion }))
+          }
           placeholder="Suggest how to revise the benchmark item if needed."
         />
 
         <TextAreaField
           label="Annotator note"
           value={formState.annotatorNote ?? ''}
-          onChange={(annotatorNote) => setFormState((current) => ({ ...current, annotatorNote }))}
+          onChange={(annotatorNote) => setFormState((current) => withDraftMeta(current, { annotatorNote }))}
           placeholder="Optional extra note."
         />
 

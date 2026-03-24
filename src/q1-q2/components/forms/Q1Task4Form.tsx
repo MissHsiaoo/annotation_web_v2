@@ -18,6 +18,9 @@ import {
   annotationFormFooterClass,
   annotationFormHeaderClass,
   annotationValidationErrorClass,
+  formatAnnotationSaveSummary,
+  useAnnotationDraftSync,
+  withDraftMeta,
 } from './annotationFormShell';
 import { CheckboxField, RadioField, TextAreaField } from './FormFields';
 
@@ -61,10 +64,10 @@ function createEmptySubAnnotation(seed: QuerySeed): Q1Task4SubAnnotation {
   return {
     queryId: seed.queryId,
     queryText: seed.queryText,
-    overallVerdict: '',
-    testsTargetAbility: '',
-    memoryDependency: '',
-    abilityPurity: '',
+    overallVerdict: 'reasonable',
+    testsTargetAbility: 'yes',
+    memoryDependency: 'strong',
+    abilityPurity: 'high',
     issueTypes: [],
     evidenceNote: '',
     revisionSuggestion: '',
@@ -106,31 +109,32 @@ interface Q1Task4FormProps {
   ability?: AbilityKey;
   initialValue?: Q1Task4Annotation;
   querySeeds: QuerySeed[];
+  onDraftChange?: (annotation: Q1Task4Annotation) => void;
   onSave: (annotation: Q1Task4Annotation) => void;
 }
 
-export function Q1Task4Form({ ability, initialValue, querySeeds, onSave }: Q1Task4FormProps) {
-  const mergedInitial = useMemo(
+export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, onSave }: Q1Task4FormProps) {
+  const startingValue = useMemo(
     () => mergeQuerySeeds(querySeeds, initialValue, ability),
     [ability, initialValue, querySeeds],
   );
-  const [formState, setFormState] = useState<Q1Task4Annotation>(mergedInitial);
+  const [formState, setFormState] = useState<Q1Task4Annotation>(startingValue);
   const [activeQueryId, setActiveQueryId] = useState(querySeeds[0]?.queryId ?? 'query-1');
   const [validationError, setValidationError] = useState('');
+  const [isEditingQuery, setIsEditingQuery] = useState(false);
 
-  const saveSummary = useMemo(() => {
-    if (formState.updatedAt) {
-      return `Saved at ${new Date(formState.updatedAt).toLocaleString()}`;
-    }
+  useAnnotationDraftSync(formState, startingValue, onDraftChange);
 
-    return 'Not saved yet';
-  }, [formState.updatedAt]);
+  const saveSummary = useMemo(
+    () => formatAnnotationSaveSummary(formState.status, formState.updatedAt),
+    [formState.status, formState.updatedAt],
+  );
 
   const completionCount = formState.subAnnotations.filter((item) => item.overallVerdict).length;
 
   const updateSubAnnotation = (queryId: string, patch: Partial<Q1Task4SubAnnotation>) => {
     setFormState((current) => ({
-      ...current,
+      ...withDraftMeta(current, {}),
       subAnnotations: current.subAnnotations.map((item) =>
         item.queryId === queryId ? { ...item, ...patch } : item,
       ),
@@ -206,13 +210,37 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onSave }: Q1Tas
           {formState.subAnnotations.map((item, index) => (
             <TabsContent key={item.queryId} value={item.queryId} className="space-y-6">
               <div className={annotationFormContextPanelClass}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Active query
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-800">{item.queryText}</p>
-                <p className="mt-3 text-xs text-slate-500">
-                  Query ID: {item.queryId} | Slot {index + 1}
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Active query
+                    </p>
+                    <p className="mt-3 text-xs text-slate-500">
+                      Query ID: {item.queryId} | Slot {index + 1}
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingQuery((value) => !value)}>
+                    {isEditingQuery ? 'Hide editing' : 'Edit query'}
+                  </Button>
+                </div>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Original</p>
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-white/80 p-3 text-sm leading-6 text-slate-800">
+                      {querySeeds.find((seed) => seed.queryId === item.queryId)?.queryText ?? item.queryText}
+                    </div>
+                  </div>
+                  {isEditingQuery ||
+                  item.queryText !==
+                    (querySeeds.find((seed) => seed.queryId === item.queryId)?.queryText ?? item.queryText) ? (
+                    <TextAreaField
+                      label="Edited query"
+                      value={item.queryText}
+                      onChange={(queryText) => updateSubAnnotation(item.queryId, { queryText })}
+                      placeholder="Revise the ability query if needed."
+                    />
+                  ) : null}
+                </div>
               </div>
 
               <RadioField
@@ -288,7 +316,7 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onSave }: Q1Tas
         <TextAreaField
           label="Session-level annotator note"
           value={formState.annotatorNote ?? ''}
-          onChange={(annotatorNote) => setFormState((current) => ({ ...current, annotatorNote }))}
+          onChange={(annotatorNote) => setFormState((current) => withDraftMeta(current, { annotatorNote }))}
           placeholder="Optional note across all queries in this session."
         />
 

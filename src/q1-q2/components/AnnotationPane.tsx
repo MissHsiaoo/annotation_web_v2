@@ -47,6 +47,60 @@ function buildReviewSeeds(judgeOutput: Record<string, any> | undefined) {
   ];
 }
 
+function buildQ1Task2NewDialogueSeeds(loadedItem?: LoadedManualCheckItem | null) {
+  const original = asRecord(loadedItem?.itemData?.original);
+  const record = asRecord(original?.record);
+
+  return Array.isArray(record?.new_dialogue)
+    ? record.new_dialogue
+        .map((item: unknown, index: number) => {
+          const turn = asRecord(item);
+          const text = turn && typeof turn.text === 'string' ? turn.text : '';
+          const role = turn && typeof turn.role === 'string' ? turn.role : 'unknown';
+
+          if (!text.trim()) {
+            return null;
+          }
+
+          return {
+            turnId: `turn-${index + 1}`,
+            role,
+            text,
+          };
+        })
+        .filter(Boolean)
+    : [];
+}
+
+function buildQ1Task2UpdatedMemorySeeds(loadedItem?: LoadedManualCheckItem | null) {
+  const original = asRecord(loadedItem?.itemData?.original);
+  return Array.isArray(original?.answer)
+    ? original.answer
+        .map((item: unknown, index: number) => {
+          const record = asRecord(item);
+          const value = record && typeof record.value === 'string' ? record.value : '';
+
+          if (!value.trim()) {
+            return null;
+          }
+
+          return {
+            memoryId:
+              record && typeof record.memory_id === 'string' && record.memory_id.trim()
+                ? record.memory_id
+                : `memory-${index + 1}`,
+            value,
+          };
+        })
+        .filter(Boolean)
+    : [];
+}
+
+function getQ1Task3QuerySeed(loadedItem?: LoadedManualCheckItem | null): string {
+  const original = asRecord(loadedItem?.itemData?.original);
+  return original && typeof original.query === 'string' ? original.query : '';
+}
+
 function buildQuerySeeds(loadedItem?: LoadedManualCheckItem | null) {
   const original = asRecord(loadedItem?.itemData?.original);
   return Array.isArray(original?.queries)
@@ -143,6 +197,7 @@ interface AnnotationPaneProps {
   currentAnnotation?: AnySupportedAnnotation;
   evaluationMode: EvaluationMode;
   onEvaluationModeChange: (mode: EvaluationMode) => void;
+  onDraftChange: (annotation: AnySupportedAnnotation) => void;
   onSave: (annotation: AnySupportedAnnotation) => void;
 }
 
@@ -152,6 +207,7 @@ export function AnnotationPane({
   currentAnnotation,
   evaluationMode,
   onEvaluationModeChange,
+  onDraftChange,
   onSave,
 }: AnnotationPaneProps) {
   if (entry.track === 'Q1' && entry.task === 'task1') {
@@ -159,6 +215,7 @@ export function AnnotationPane({
       <Q1Task1Form
         key={`${entry.id}-q1-task1`}
         initialValue={currentAnnotation?.formType === 'Q1:task1' ? currentAnnotation : undefined}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -169,6 +226,9 @@ export function AnnotationPane({
       <Q1Task2Form
         key={`${entry.id}-q1-task2`}
         initialValue={currentAnnotation?.formType === 'Q1:task2' ? currentAnnotation : undefined}
+        newDialogueSeed={buildQ1Task2NewDialogueSeeds(loadedItem)}
+        updatedMemorySeed={buildQ1Task2UpdatedMemorySeeds(loadedItem)}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -179,6 +239,8 @@ export function AnnotationPane({
       <Q1Task3Form
         key={`${entry.id}-q1-task3`}
         initialValue={currentAnnotation?.formType === 'Q1:task3' ? currentAnnotation : undefined}
+        querySeed={getQ1Task3QuerySeed(loadedItem)}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -191,6 +253,7 @@ export function AnnotationPane({
         ability={entry.ability}
         initialValue={currentAnnotation?.formType === 'Q1:task4' ? currentAnnotation : undefined}
         querySeeds={buildQuerySeeds(loadedItem)}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -207,6 +270,7 @@ export function AnnotationPane({
         reviewSeeds={reviewSeeds}
         mode={evaluationMode}
         onModeChange={onEvaluationModeChange}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -223,6 +287,7 @@ export function AnnotationPane({
         reviewSeeds={reviewSeeds}
         mode={evaluationMode}
         onModeChange={onEvaluationModeChange}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -235,6 +300,7 @@ export function AnnotationPane({
         initialValue={currentAnnotation?.formType === 'Q2:task3' ? currentAnnotation : undefined}
         mode={evaluationMode}
         onModeChange={onEvaluationModeChange}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );
@@ -249,6 +315,7 @@ export function AnnotationPane({
         mode={evaluationMode}
         querySeeds={buildTask4QuerySeeds(loadedItem)}
         onModeChange={onEvaluationModeChange}
+        onDraftChange={onDraftChange}
         onSave={onSave}
       />
     );

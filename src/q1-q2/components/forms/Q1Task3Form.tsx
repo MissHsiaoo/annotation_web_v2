@@ -13,9 +13,13 @@ import type { Q1Task3Annotation } from '../../types';
 import {
   annotationFormCardClass,
   annotationFormContentClass,
+  annotationFormContextPanelClass,
   annotationFormFooterClass,
   annotationFormHeaderClass,
   annotationValidationErrorClass,
+  formatAnnotationSaveSummary,
+  useAnnotationDraftSync,
+  withDraftMeta,
 } from './annotationFormShell';
 import { RadioField, TextAreaField } from './FormFields';
 
@@ -42,10 +46,11 @@ function createEmptyAnnotation(): Q1Task3Annotation {
     formType: 'Q1:task3',
     status: 'draft',
     updatedAt: '',
-    relevanceLevel: '',
-    hardWithoutTargetMemory: '',
-    answerableByCommonSense: '',
-    multipleMemoriesCouldSupport: '',
+    queryText: '',
+    relevanceLevel: 'strong',
+    hardWithoutTargetMemory: 'yes',
+    answerableByCommonSense: 'no',
+    multipleMemoriesCouldSupport: 'no',
     evidenceNote: '',
     revisionSuggestion: '',
     annotatorNote: '',
@@ -54,20 +59,31 @@ function createEmptyAnnotation(): Q1Task3Annotation {
 
 interface Q1Task3FormProps {
   initialValue?: Q1Task3Annotation;
+  querySeed: string;
+  onDraftChange?: (annotation: Q1Task3Annotation) => void;
   onSave: (annotation: Q1Task3Annotation) => void;
 }
 
-export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
-  const [formState, setFormState] = useState<Q1Task3Annotation>(initialValue ?? createEmptyAnnotation());
+function createAnnotationFromSeed(querySeed: string, initialValue?: Q1Task3Annotation): Q1Task3Annotation {
+  const fallback = initialValue ?? createEmptyAnnotation();
+  return {
+    ...fallback,
+    queryText: fallback.queryText || querySeed,
+  };
+}
+
+export function Q1Task3Form({ initialValue, querySeed, onDraftChange, onSave }: Q1Task3FormProps) {
+  const startingValue = useMemo(() => createAnnotationFromSeed(querySeed, initialValue), [initialValue, querySeed]);
+  const [formState, setFormState] = useState<Q1Task3Annotation>(startingValue);
   const [validationError, setValidationError] = useState('');
+  const [isEditingQuery, setIsEditingQuery] = useState(false);
 
-  const saveSummary = useMemo(() => {
-    if (formState.updatedAt) {
-      return `Saved at ${new Date(formState.updatedAt).toLocaleString()}`;
-    }
+  useAnnotationDraftSync(formState, startingValue, onDraftChange);
 
-    return 'Not saved yet';
-  }, [formState.updatedAt]);
+  const saveSummary = useMemo(
+    () => formatAnnotationSaveSummary(formState.status, formState.updatedAt),
+    [formState.status, formState.updatedAt],
+  );
 
   const handleSave = () => {
     if (!formState.relevanceLevel) {
@@ -102,13 +118,45 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
         </div>
       </CardHeader>
       <CardContent className={annotationFormContentClass}>
+        <div className={annotationFormContextPanelClass}>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Editable query under review</p>
+              <p className="text-xs leading-5 text-slate-500">
+                Keep the original query visible, and revise it only if the generated wording is weak.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingQuery((value) => !value)}>
+              {isEditingQuery ? 'Hide editing' : 'Edit query'}
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Original query</p>
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                {querySeed}
+              </div>
+            </div>
+
+            {isEditingQuery || formState.queryText !== querySeed ? (
+              <TextAreaField
+                label="Edited query"
+                value={formState.queryText}
+                onChange={(queryText) => setFormState((current) => withDraftMeta(current, { queryText }))}
+                placeholder="Revise the query if needed."
+              />
+            ) : null}
+          </div>
+        </div>
+
         <RadioField
           label="Relevance level"
           value={formState.relevanceLevel}
           options={RELEVANCE_OPTIONS}
           onChange={(value) =>
             setFormState((current) => ({
-              ...current,
+              ...withDraftMeta(current, {}),
               relevanceLevel: value as Q1Task3Annotation['relevanceLevel'],
             }))
           }
@@ -120,7 +168,7 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
           options={TERNARY_OPTIONS}
           onChange={(value) =>
             setFormState((current) => ({
-              ...current,
+              ...withDraftMeta(current, {}),
               hardWithoutTargetMemory: value as Q1Task3Annotation['hardWithoutTargetMemory'],
             }))
           }
@@ -132,7 +180,7 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
           options={BINARY_OPTIONS}
           onChange={(value) =>
             setFormState((current) => ({
-              ...current,
+              ...withDraftMeta(current, {}),
               answerableByCommonSense: value as Q1Task3Annotation['answerableByCommonSense'],
             }))
           }
@@ -144,7 +192,7 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
           options={BINARY_OPTIONS}
           onChange={(value) =>
             setFormState((current) => ({
-              ...current,
+              ...withDraftMeta(current, {}),
               multipleMemoriesCouldSupport:
                 value as Q1Task3Annotation['multipleMemoriesCouldSupport'],
             }))
@@ -154,23 +202,21 @@ export function Q1Task3Form({ initialValue, onSave }: Q1Task3FormProps) {
         <TextAreaField
           label="Evidence note"
           value={formState.evidenceNote ?? ''}
-          onChange={(evidenceNote) => setFormState((current) => ({ ...current, evidenceNote }))}
+          onChange={(evidenceNote) => setFormState((current) => withDraftMeta(current, { evidenceNote }))}
           placeholder="Explain why the selected memory is or is not essential for the query."
         />
 
         <TextAreaField
           label="Revision suggestion"
           value={formState.revisionSuggestion ?? ''}
-          onChange={(revisionSuggestion) =>
-            setFormState((current) => ({ ...current, revisionSuggestion }))
-          }
+          onChange={(revisionSuggestion) => setFormState((current) => withDraftMeta(current, { revisionSuggestion }))}
           placeholder="Suggest how to sharpen the query-memory pairing if needed."
         />
 
         <TextAreaField
           label="Annotator note"
           value={formState.annotatorNote ?? ''}
-          onChange={(annotatorNote) => setFormState((current) => ({ ...current, annotatorNote }))}
+          onChange={(annotatorNote) => setFormState((current) => withDraftMeta(current, { annotatorNote }))}
           placeholder="Optional extra note."
         />
 

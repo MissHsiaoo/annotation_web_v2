@@ -12,11 +12,13 @@ import {
 
 interface FileSourceSelectorProps {
   onFolderSelected: (files: FileList) => void;
+  onBundleSelected: (file: File) => void;
   isLoading: boolean;
 }
 
-export function FileSourceSelector({ onFolderSelected, isLoading }: FileSourceSelectorProps) {
+export function FileSourceSelector({ onFolderSelected, onBundleSelected, isLoading }: FileSourceSelectorProps) {
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const bundleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!folderInputRef.current) {
@@ -32,6 +34,16 @@ export function FileSourceSelector({ onFolderSelected, isLoading }: FileSourceSe
 
     if (files && files.length > 0) {
       onFolderSelected(files);
+    }
+
+    event.target.value = '';
+  };
+
+  const handleBundleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      onBundleSelected(file);
     }
 
     event.target.value = '';
@@ -57,6 +69,13 @@ export function FileSourceSelector({ onFolderSelected, isLoading }: FileSourceSe
           multiple
           onChange={handleFolderChange}
         />
+        <input
+          ref={bundleInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={handleBundleChange}
+        />
 
         <div className="rounded-2xl border border-dashed border-sky-300/90 bg-gradient-to-br from-sky-50/90 to-white p-6 shadow-inner ring-1 ring-sky-200/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -67,15 +86,27 @@ export function FileSourceSelector({ onFolderSelected, isLoading }: FileSourceSe
                 Q2 tracks safely.
               </p>
             </div>
-            <Button
-              type="button"
-              onClick={() => folderInputRef.current?.click()}
-              disabled={isLoading}
-              className="gap-2 self-start rounded-xl shadow-sm transition-shadow hover:shadow-md"
-            >
-              <Upload className="h-4 w-4" />
-              {isLoading ? 'Reading folder...' : 'Upload Dataset Folder'}
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                onClick={() => folderInputRef.current?.click()}
+                disabled={isLoading}
+                className="gap-2 self-start rounded-xl shadow-sm transition-shadow hover:shadow-md"
+              >
+                <Upload className="h-4 w-4" />
+                {isLoading ? 'Reading folder...' : 'Upload Dataset Folder'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => bundleInputRef.current?.click()}
+                disabled={isLoading}
+                className="gap-2 self-start rounded-xl border-slate-300 bg-white shadow-sm transition-shadow hover:shadow-md"
+              >
+                <Upload className="h-4 w-4" />
+                Import Bundle JSON
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -93,7 +124,7 @@ export function FileSourceSelector({ onFolderSelected, isLoading }: FileSourceSe
             <ul className="list-disc space-y-1 pl-4">
               <li>Task-specific left-side display composition</li>
               <li>Right-side annotation forms and save flow</li>
-              <li>Annotation-only export and local draft recovery</li>
+              <li>Annotation bundle import and merged bundle import</li>
             </ul>
           </div>
         </div>

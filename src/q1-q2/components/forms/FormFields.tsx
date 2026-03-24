@@ -132,7 +132,18 @@ export function NumberField({ label, value, onChange, min = 0, max = 100 }: Numb
         value={value ?? ''}
         onChange={(event) => {
           const raw = event.target.value.trim();
-          onChange(raw ? Number.parseInt(raw, 10) : null);
+          if (!raw) {
+            onChange(null);
+            return;
+          }
+
+          const parsed = Number.parseInt(raw, 10);
+          if (Number.isNaN(parsed)) {
+            onChange(null);
+            return;
+          }
+
+          onChange(Math.min(max, Math.max(min, parsed)));
         }}
         placeholder={`${min}-${max}`}
         className="h-11 rounded-xl border-slate-300 bg-white"

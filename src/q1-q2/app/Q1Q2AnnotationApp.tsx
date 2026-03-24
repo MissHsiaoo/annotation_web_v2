@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Archive,
@@ -46,6 +46,14 @@ import {
 import { TaskSampleDisplay } from '../components/display/TaskSampleDisplay';
 import { buildUploadedFileIndex } from '../data/indexers/buildUploadedFileIndex';
 import {
+  buildAnnotationExportBundle,
+  buildAnnotationStorageKey,
+  buildMergedDatasetExportBundle,
+  createDatasetFromMergedBundle,
+  formatTimestampForFilename,
+  parseImportableBundle,
+} from '../data/manualCheckBundles';
+import {
   buildAnnotationDraftKey,
   getManifestRowAssignedModel,
   loadManualCheckDataset,
@@ -53,6 +61,7 @@ import {
 } from '../data/manualCheckFolderLoader';
 import type {
   AbilityKey,
+  AnnotationExportBundle,
   AnySupportedAnnotation,
   EvaluationMode,
   LoadedManualCheckItem,
@@ -95,6 +104,34 @@ function downloadJson(data: unknown, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function toSavedAnnotationMap(entries: SavedAnnotationEntry[]): Record<string, SavedAnnotationEntry> {
+  return Object.fromEntries(entries.map((entry) => [entry.draftKey, entry]));
+}
+
+function getLatestAnnotationTime(savedEntries: Record<string, SavedAnnotationEntry>): Date | null {
+  const timestamps = Object.values(savedEntries)
+    .map((entry) => entry.annotation.updatedAt)
+    .filter((value): value is string => Boolean(value))
+    .map((value) => new Date(value))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  if (timestamps.length === 0) {
+    return null;
+  }
+
+  return timestamps.reduce((latest, current) => (current > latest ? current : latest));
+}
+
+function matchesDataset(
+  dataset: ManualCheckDataset,
+  bundle: AnnotationExportBundle,
+): boolean {
+  return (
+    bundle.datasetFingerprint === dataset.datasetFingerprint ||
+    bundle.rootName === dataset.rootName
+  );
+}
+
 function getEntryLabel(entry: ManualCheckDatasetEntry): string {
   return entry.ability ? `${TASK_LABELS[entry.task]} / ${ABILITY_LABELS[entry.ability]}` : TASK_LABELS[entry.task];
 }
@@ -125,6 +162,8 @@ function SummaryStat({
 }
 
 export default function Q1Q2AnnotationApp() {
+  const bundleInputRef = useRef<HTMLInputElement>(null);
+  const pendingImportedAnnotationsRef = useRef<Record<string, SavedAnnotationEntry> | null>(null);
   const [dataset, setDataset] = useState<ManualCheckDataset | null>(null);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
@@ -132,6 +171,8 @@ export default function Q1Q2AnnotationApp() {
   const [jumpInput, setJumpInput] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [isLoadingItem, setIsLoadingItem] = useState(false);
+  const [isExportingBundles, setIsExportingBundles] = useState(false);
+  const [annotationPaneVersion, setAnnotationPaneVersion] = useState(0);
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>('judge_visible');
   const [savedAnnotations, setSavedAnnotations] = useState<Record<string, SavedAnnotationEntry>>({});
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
@@ -149,50 +190,85 @@ export default function Q1Q2AnnotationApp() {
           canonicalId: currentItem.manifestRow.canonical_id,
         })
       : null;
-  const currentSavedAnnotation = currentDraftKey ? savedAnnotations[currentDraftKey]?.annotation : undefined;
+  const currentSavedAnnotationEntry = currentDraftKey ? savedAnnotations[currentDraftKey] : undefined;
+  const currentSavedAnnotation = currentSavedAnnotationEntry?.annotation;
   const entrySavedCount = activeEntry
     ? Object.values(savedAnnotations).filter(
         (item) =>
           item.track === activeEntry.track &&
           item.task === activeEntry.task &&
-          (item.ability ?? null) === (activeEntry.ability ?? null),
+          (item.ability ?? null) === (activeEntry.ability ?? null) &&
+          item.annotation.status === 'saved',
       ).length
     : 0;
   const currentSampleSavedAt = currentSavedAnnotation?.updatedAt
     ? new Date(currentSavedAnnotation.updatedAt)
     : null;
   const currentSampleSaveLabel = currentSampleSavedAt
-    ? `Saved ${currentSampleSavedAt.toLocaleString()}`
+    ? `${currentSavedAnnotation?.status === 'saved' ? 'Saved' : 'Draft autosaved'} ${currentSampleSavedAt.toLocaleString()}`
     : 'Current item not saved yet';
   const progressPercent = activeEntry ? ((currentItemIndex + 1) / activeEntry.itemCount) * 100 : 0;
+
+  const getPreferredItemIndexForEntry = (nextEntry: ManualCheckDatasetEntry): number => {
+    if (!nextEntry.itemCount) {
+      return 0;
+    }
+
+    if (currentItem) {
+      const matchedIndex = nextEntry.manifestRows.findIndex(
+        (row) =>
+          row.session_id === currentItem.manifestRow.session_id &&
+          row.canonical_id === currentItem.manifestRow.canonical_id,
+      );
+
+      if (matchedIndex >= 0) {
+        return matchedIndex;
+      }
+    }
+
+    return Math.min(currentItemIndex, nextEntry.itemCount - 1);
+  };
+
+  const switchToEntryPreservingContext = (nextEntry: ManualCheckDatasetEntry) => {
+    setActiveEntryId(nextEntry.id);
+    setCurrentItemIndex(getPreferredItemIndexForEntry(nextEntry));
+  };
 
   useEffect(() => {
     if (!dataset) {
       return;
     }
 
-    const storageKey = `q1-q2-annotations:${dataset.rootName}`;
+    const storageKey = buildAnnotationStorageKey(dataset.datasetFingerprint);
     const raw = localStorage.getItem(storageKey);
+    let restoredAnnotations: Record<string, SavedAnnotationEntry> = {};
+    let restoredTime: Date | null = null;
 
-    if (!raw) {
-      setSavedAnnotations({});
-      setLastSavedTime(null);
-      return;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as {
+          savedAnnotations?: Record<string, SavedAnnotationEntry>;
+          updatedAt?: string;
+        };
+
+        restoredAnnotations = parsed.savedAnnotations ?? {};
+        restoredTime = parsed.updatedAt ? new Date(parsed.updatedAt) : null;
+      } catch {
+        toast.warning('Failed to restore saved annotations from local storage.');
+      }
     }
 
-    try {
-      const parsed = JSON.parse(raw) as {
-        savedAnnotations?: Record<string, SavedAnnotationEntry>;
-        updatedAt?: string;
+    if (pendingImportedAnnotationsRef.current) {
+      restoredAnnotations = {
+        ...restoredAnnotations,
+        ...pendingImportedAnnotationsRef.current,
       };
-
-      setSavedAnnotations(parsed.savedAnnotations ?? {});
-      setLastSavedTime(parsed.updatedAt ? new Date(parsed.updatedAt) : null);
-    } catch {
-      setSavedAnnotations({});
-      setLastSavedTime(null);
-      toast.warning('Failed to restore saved annotations from local storage.');
+      restoredTime = getLatestAnnotationTime(restoredAnnotations) ?? restoredTime;
+      pendingImportedAnnotationsRef.current = null;
     }
+
+    setSavedAnnotations(restoredAnnotations);
+    setLastSavedTime(restoredTime);
   }, [dataset]);
 
   useEffect(() => {
@@ -200,7 +276,7 @@ export default function Q1Q2AnnotationApp() {
       return;
     }
 
-    const storageKey = `q1-q2-annotations:${dataset.rootName}`;
+    const storageKey = buildAnnotationStorageKey(dataset.datasetFingerprint);
     const timestamp = new Date().toISOString();
     localStorage.setItem(
       storageKey,
@@ -251,20 +327,31 @@ export default function Q1Q2AnnotationApp() {
     };
   }, [dataset, activeEntry, currentItemIndex]);
 
+  const applyLoadedDataset = (
+    loadedDataset: ManualCheckDataset,
+    importedAnnotations?: Record<string, SavedAnnotationEntry>,
+  ) => {
+    const firstEntry = loadedDataset.entries[0];
+
+    pendingImportedAnnotationsRef.current = importedAnnotations ?? null;
+    setSavedAnnotations({});
+    setLastSavedTime(null);
+    setAnnotationPaneVersion((value) => value + 1);
+    setDataset(loadedDataset);
+    setActiveEntryId(firstEntry.id);
+    setCurrentItemIndex(0);
+    setCurrentItem(null);
+    setJumpInput('');
+    setEvaluationMode('judge_visible');
+  };
+
   const handleDatasetImport = async (files: FileList) => {
     setIsImporting(true);
 
     try {
       const uploadedFileIndex = buildUploadedFileIndex(files);
       const loadedDataset = await loadManualCheckDataset(uploadedFileIndex);
-      const firstEntry = loadedDataset.entries[0];
-
-      setDataset(loadedDataset);
-      setActiveEntryId(firstEntry.id);
-      setCurrentItemIndex(0);
-      setCurrentItem(null);
-      setJumpInput('');
-      setEvaluationMode('judge_visible');
+      applyLoadedDataset(loadedDataset);
 
       toast.success(`Loaded ${loadedDataset.entries.length} dataset views from ${loadedDataset.rootName}.`);
 
@@ -281,7 +368,53 @@ export default function Q1Q2AnnotationApp() {
     }
   };
 
+  const handleBundleImport = async (file: File) => {
+    setIsImporting(true);
+
+    try {
+      const parsedValue = JSON.parse(await file.text()) as unknown;
+      const bundle = parseImportableBundle(parsedValue);
+
+      if (!bundle) {
+        throw new Error('Unsupported bundle JSON. Expected an annotation bundle or merged dataset bundle.');
+      }
+
+      if (bundle.bundleType === 'q1-q2-merged-dataset') {
+        const { dataset: importedDataset, savedAnnotations: importedAnnotations } =
+          createDatasetFromMergedBundle(bundle);
+        applyLoadedDataset(importedDataset, importedAnnotations);
+        toast.success(`Imported merged dataset bundle from ${bundle.rootName}.`);
+        return;
+      }
+
+      if (!dataset) {
+        throw new Error('Load a dataset folder or merged dataset bundle before importing annotation-only bundles.');
+      }
+
+      if (!matchesDataset(dataset, bundle)) {
+        throw new Error('The selected annotation bundle does not match the currently loaded dataset.');
+      }
+
+      const importedAnnotations = toSavedAnnotationMap(bundle.annotations);
+      setSavedAnnotations((current) => ({
+        ...current,
+        ...importedAnnotations,
+      }));
+      setLastSavedTime(getLatestAnnotationTime(importedAnnotations) ?? new Date());
+      setAnnotationPaneVersion((value) => value + 1);
+      toast.success(
+        `Imported ${bundle.annotations.length} ${bundle.annotationStatus} annotation records from bundle.`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import bundle JSON.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleReset = () => {
+    pendingImportedAnnotationsRef.current = null;
+    setAnnotationPaneVersion((value) => value + 1);
     setDataset(null);
     setActiveEntryId(null);
     setCurrentItemIndex(0);
@@ -293,18 +426,27 @@ export default function Q1Q2AnnotationApp() {
   };
 
   const handleTrackChange = (nextTrack: string) => {
-    if (!dataset) {
+    if (!dataset || !activeEntry) {
       return;
     }
 
-    const nextEntry = dataset.entries.find((entry) => entry.track === nextTrack);
+    const nextEntry =
+      dataset.entries.find(
+        (entry) =>
+          entry.track === nextTrack &&
+          entry.task === activeEntry.task &&
+          (activeEntry.task !== 'task4' || entry.ability === activeEntry.ability),
+      ) ??
+      dataset.entries.find(
+        (entry) => entry.track === nextTrack && entry.task === activeEntry.task,
+      ) ??
+      dataset.entries.find((entry) => entry.track === nextTrack);
+
     if (!nextEntry) {
       return;
     }
 
-    setActiveEntryId(nextEntry.id);
-    setCurrentItemIndex(0);
-    setEvaluationMode('judge_visible');
+    switchToEntryPreservingContext(nextEntry);
   };
 
   const handleTaskChange = (nextTask: string) => {
@@ -319,9 +461,7 @@ export default function Q1Q2AnnotationApp() {
       return;
     }
 
-    setActiveEntryId(nextEntry.id);
-    setCurrentItemIndex(0);
-    setEvaluationMode('judge_visible');
+    switchToEntryPreservingContext(nextEntry);
   };
 
   const handleAbilityChange = (nextAbility: string) => {
@@ -339,9 +479,7 @@ export default function Q1Q2AnnotationApp() {
       return;
     }
 
-    setActiveEntryId(nextEntry.id);
-    setCurrentItemIndex(0);
-    setEvaluationMode('judge_visible');
+    switchToEntryPreservingContext(nextEntry);
   };
 
   const handleJump = () => {
@@ -383,7 +521,7 @@ export default function Q1Q2AnnotationApp() {
 
   const currentAssignedModel = currentItem ? getManifestRowAssignedModel(currentItem.manifestRow) : null;
 
-  const handleSaveAnnotation = (annotation: AnySupportedAnnotation) => {
+  const upsertAnnotationRecord = (annotation: AnySupportedAnnotation, toastMessage?: string) => {
     if (!currentItem || !activeEntry || !currentDraftKey) {
       return;
     }
@@ -404,27 +542,74 @@ export default function Q1Q2AnnotationApp() {
       [currentDraftKey]: savedEntry,
     }));
 
-    toast.success('Annotation saved.');
+    if (toastMessage) {
+      toast.success(toastMessage);
+    }
   };
 
-  const handleDownloadAnnotations = () => {
+  const handleDraftAnnotation = (annotation: AnySupportedAnnotation) => {
+    upsertAnnotationRecord(annotation);
+  };
+
+  const handleSaveAnnotation = (annotation: AnySupportedAnnotation) => {
+    upsertAnnotationRecord(annotation, 'Annotation saved.');
+  };
+
+  const handleDownloadBundles = async () => {
     if (!dataset) {
       return;
     }
 
-    const exportPayload = {
-      sourceType: dataset.sourceType,
-      rootName: dataset.rootName,
-      generatedAt: new Date().toISOString(),
-      annotations: Object.values(savedAnnotations),
-    };
+    setIsExportingBundles(true);
+    const timestamp = formatTimestampForFilename();
+    const annotationEntries = Object.values(savedAnnotations);
+    const savedCount = annotationEntries.filter((entry) => entry.annotation.status === 'saved').length;
+    const draftCount = annotationEntries.filter((entry) => entry.annotation.status === 'draft').length;
 
-    downloadJson(exportPayload, `q1-q2-annotations-${Date.now()}.json`);
+    try {
+      if (savedCount > 0) {
+        const annotationBundle = buildAnnotationExportBundle(dataset, savedAnnotations, 'saved');
+        downloadJson(annotationBundle, `${dataset.rootName}-annotation-records-${timestamp}.json`);
+      }
+
+      if (draftCount > 0) {
+        const draftBundle = buildAnnotationExportBundle(dataset, savedAnnotations, 'draft');
+        downloadJson(draftBundle, `${dataset.rootName}-annotation-drafts-${timestamp}.json`);
+      }
+
+      const mergedBundle = await buildMergedDatasetExportBundle(dataset, savedAnnotations);
+      downloadJson(mergedBundle, `${dataset.rootName}-merged-dataset-${timestamp}.json`);
+      const downloadedLabels = [
+        savedCount > 0 ? 'saved annotations' : null,
+        draftCount > 0 ? 'draft annotations' : null,
+        'merged dataset',
+      ].filter(Boolean);
+      toast.success(`Downloaded ${downloadedLabels.join(', ')} bundle(s).`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to prepare export bundles.');
+    } finally {
+      setIsExportingBundles(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100/95 via-white to-indigo-50/40 px-4 py-8 sm:px-6 lg:px-10">
       <Toaster position="top-right" />
+      <input
+        ref={bundleInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+
+          if (file) {
+            handleBundleImport(file);
+          }
+
+          event.target.value = '';
+        }}
+      />
       <div className="mx-auto max-w-[1680px] space-y-8">
         <header className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-7 shadow-md ring-1 ring-slate-200/50 backdrop-blur-sm sm:p-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -462,13 +647,23 @@ export default function Q1Q2AnnotationApp() {
                 </Button>
                 <Button
                   type="button"
+                  variant="outline"
+                  onClick={() => bundleInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="gap-2 rounded-xl border-slate-300 bg-white shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow"
+                >
+                  <FileJson className="h-4 w-4" />
+                  Import bundle
+                </Button>
+                <Button
+                  type="button"
                   variant="default"
-                  onClick={handleDownloadAnnotations}
-                  disabled={Object.keys(savedAnnotations).length === 0}
+                  onClick={handleDownloadBundles}
+                  disabled={Object.keys(savedAnnotations).length === 0 || isExportingBundles}
                   className="gap-2 rounded-xl shadow-sm transition-all hover:shadow-md"
                 >
                   <Archive className="h-4 w-4" />
-                  Download annotations
+                  {isExportingBundles ? 'Preparing bundles...' : 'Download bundles'}
                 </Button>
                 <Button
                   type="button"
@@ -476,8 +671,13 @@ export default function Q1Q2AnnotationApp() {
                   onClick={() =>
                     currentItem
                       ? downloadJson(
-                          currentItem.itemData,
-                          `${currentItem.entry.track}-${currentItem.entry.task}-${currentItem.manifestRow.session_id}-${currentItem.manifestRow.canonical_id}.json`,
+                          currentSavedAnnotation
+                            ? {
+                                ...currentItem.itemData,
+                                workbench_annotation: currentSavedAnnotation,
+                              }
+                            : currentItem.itemData,
+                          `${currentItem.entry.track}-${currentItem.entry.task}-${currentItem.manifestRow.session_id}-${currentItem.manifestRow.canonical_id}-${formatTimestampForFilename()}.json`,
                         )
                       : null
                   }
@@ -494,7 +694,11 @@ export default function Q1Q2AnnotationApp() {
 
         {!dataset ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
-            <FileSourceSelector onFolderSelected={handleDatasetImport} isLoading={isImporting} />
+            <FileSourceSelector
+              onFolderSelected={handleDatasetImport}
+              onBundleSelected={handleBundleImport}
+              isLoading={isImporting}
+            />
 
             <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-md ring-1 ring-slate-200/35">
               <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-white to-indigo-50/40 px-5 py-5 sm:px-6">
@@ -770,7 +974,11 @@ export default function Q1Q2AnnotationApp() {
                     </CardContent>
                   </Card>
                 ) : currentItem ? (
-                  <TaskSampleDisplay loadedItem={currentItem} evaluationMode={evaluationMode} />
+                  <TaskSampleDisplay
+                    loadedItem={currentItem}
+                    evaluationMode={evaluationMode}
+                    currentAnnotation={currentSavedAnnotation}
+                  />
                 ) : (
                   <Card className={sampleBlockCardClass}>
                     <CardHeader className={sampleBlockHeaderClass}>
@@ -799,12 +1007,13 @@ export default function Q1Q2AnnotationApp() {
 
                 {activeEntry ? (
                   <AnnotationPane
-                    key={`${activeEntry.id}:${currentDraftKey ?? 'no-item'}`}
+                    key={`${annotationPaneVersion}:${activeEntry.id}:${currentDraftKey ?? 'no-item'}`}
                     entry={activeEntry}
                     loadedItem={currentItem}
                     currentAnnotation={currentSavedAnnotation}
                     evaluationMode={evaluationMode}
                     onEvaluationModeChange={setEvaluationMode}
+                    onDraftChange={handleDraftAnnotation}
                     onSave={handleSaveAnnotation}
                   />
                 ) : null}

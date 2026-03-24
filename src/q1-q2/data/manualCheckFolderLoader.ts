@@ -189,6 +189,7 @@ export async function loadManualCheckDataset(index: UploadedFileIndex): Promise<
   return {
     sourceType: 'manual_check_data_folder',
     rootName: index.rootName,
+    datasetFingerprint: index.datasetFingerprint,
     uploadedFileIndex: index,
     runSummary,
     entries: sortEntries(entries),
@@ -231,7 +232,23 @@ export async function loadManualCheckItem(
   }
 
   const itemPath = getItemRelativePath(entry, manifestRow);
-  const itemData = await readJsonFromIndex<Record<string, unknown>>(dataset.uploadedFileIndex, itemPath);
+  let itemData: Record<string, unknown>;
+
+  if (dataset.sourceType === 'manual_check_data_folder') {
+    if (!dataset.uploadedFileIndex) {
+      throw new Error('Uploaded file index is missing for the current folder dataset.');
+    }
+
+    itemData = await readJsonFromIndex<Record<string, unknown>>(dataset.uploadedFileIndex, itemPath);
+  } else {
+    const bundledItem = dataset.bundledItemsByRelativePath?.get(itemPath);
+
+    if (!bundledItem) {
+      throw new Error(`Merged bundle is missing item data for ${itemPath}.`);
+    }
+
+    itemData = bundledItem;
+  }
 
   return {
     entry,

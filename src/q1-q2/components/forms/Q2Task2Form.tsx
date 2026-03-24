@@ -25,6 +25,9 @@ import {
   annotationFormFooterClass,
   annotationFormHeaderClass,
   annotationValidationErrorClass,
+  formatAnnotationSaveSummary,
+  isBoundedInteger,
+  useAnnotationDraftSync,
 } from './annotationFormShell';
 import { CheckboxField, NumberField, RadioField, TextAreaField } from './FormFields';
 
@@ -62,7 +65,7 @@ function createEmptyVisibleAnnotation(reviewSeeds: ReviewSeed[]): Q2Task2Visible
     mode: 'judge_visible',
     status: 'draft',
     updatedAt: '',
-    alignmentVerdict: '',
+    alignmentVerdict: 'aligned',
     issueTypes: [],
     evidenceNote: '',
     revisionSuggestion: '',
@@ -70,7 +73,7 @@ function createEmptyVisibleAnnotation(reviewSeeds: ReviewSeed[]): Q2Task2Visible
     reviewItemAnnotations: reviewSeeds.map((seed) => ({
       reviewKind: seed.reviewKind,
       reviewId: seed.reviewId,
-      humanVerdict: '',
+      humanVerdict: 'supported',
       note: '',
       suggestedCorrection: '',
     })),
@@ -82,20 +85,19 @@ function createEmptyBlindAnnotation(): Q2Task2BlindModeAnnotation {
     mode: 'blind_human_scoring',
     status: 'draft',
     updatedAt: '',
-    humanScore: null,
+    humanScore: 100,
     humanRationale: '',
     annotatorNote: '',
   };
 }
 
 function createEmptyRecord(reviewSeeds: ReviewSeed[]): Q2Task2AnnotationRecord {
+  void reviewSeeds;
   return {
     formType: 'Q2:task2',
     status: 'draft',
     updatedAt: '',
-    annotationsByMode: {
-      judge_visible: createEmptyVisibleAnnotation(reviewSeeds),
-    },
+    annotationsByMode: {},
   };
 }
 
@@ -116,7 +118,7 @@ function mergeReviewSeeds(
         existingItem ?? {
           reviewKind: seed.reviewKind,
           reviewId: seed.reviewId,
-          humanVerdict: '',
+          humanVerdict: 'supported',
           note: '',
           suggestedCorrection: '',
         }
@@ -130,6 +132,7 @@ interface Q2Task2FormProps {
   mode: EvaluationMode;
   reviewSeeds: ReviewSeed[];
   onModeChange: (mode: EvaluationMode) => void;
+  onDraftChange?: (annotation: Q2Task2AnnotationRecord) => void;
   onSave: (annotation: Q2Task2AnnotationRecord) => void;
 }
 
@@ -138,28 +141,36 @@ export function Q2Task2Form({
   mode,
   reviewSeeds,
   onModeChange,
+  onDraftChange,
   onSave,
 }: Q2Task2FormProps) {
-  const [record, setRecord] = useState<Q2Task2AnnotationRecord>(initialValue ?? createEmptyRecord(reviewSeeds));
+  const startingValue = useMemo(() => initialValue ?? createEmptyRecord(reviewSeeds), [initialValue, reviewSeeds]);
+  const [record, setRecord] = useState<Q2Task2AnnotationRecord>(startingValue);
   const [validationError, setValidationError] = useState('');
 
   const visibleAnnotation = mergeReviewSeeds(reviewSeeds, record.annotationsByMode.judge_visible);
   const blindAnnotation = record.annotationsByMode.blind_human_scoring ?? createEmptyBlindAnnotation();
 
-  const saveSummary = useMemo(() => {
-    if (record.updatedAt) {
-      return `Saved at ${new Date(record.updatedAt).toLocaleString()}`;
-    }
+  useAnnotationDraftSync(record, startingValue, onDraftChange);
 
-    return 'Not saved yet';
-  }, [record.updatedAt]);
+  const saveSummary = useMemo(
+    () => formatAnnotationSaveSummary(record.status, record.updatedAt),
+    [record.status, record.updatedAt],
+  );
 
   const updateVisibleAnnotation = (next: Q2Task2VisibleModeAnnotation) => {
+    const updatedAt = new Date().toISOString();
     setRecord((current) => ({
       ...current,
+      status: 'draft',
+      updatedAt,
       annotationsByMode: {
         ...current.annotationsByMode,
-        judge_visible: next,
+        judge_visible: {
+          ...next,
+          status: 'draft',
+          updatedAt,
+        },
       },
     }));
   };
@@ -184,18 +195,29 @@ export function Q2Task2Form({
         return;
       }
 
+      const nextTimestamp = new Date().toISOString();
       const nextVisible: Q2Task2VisibleModeAnnotation = {
         ...visibleAnnotation,
         status: 'saved',
-        updatedAt: new Date().toISOString(),
+        updatedAt: nextTimestamp,
       };
+      const nextModes = Object.fromEntries(
+        Object.entries(record.annotationsByMode).map(([modeKey, modeAnnotation]) => [
+          modeKey,
+          {
+            ...modeAnnotation,
+            status: 'saved',
+            updatedAt: nextTimestamp,
+          },
+        ]),
+      ) as Q2Task2AnnotationRecord['annotationsByMode'];
 
       const nextRecord: Q2Task2AnnotationRecord = {
         ...record,
         status: 'saved',
-        updatedAt: nextVisible.updatedAt,
+        updatedAt: nextTimestamp,
         annotationsByMode: {
-          ...record.annotationsByMode,
+          ...nextModes,
           judge_visible: nextVisible,
         },
       };
@@ -206,24 +228,34 @@ export function Q2Task2Form({
       return;
     }
 
-    if (blindAnnotation.humanScore === null || !blindAnnotation.humanRationale.trim()) {
-      setValidationError('Human score and rationale are required in blind scoring mode.');
+    if (!isBoundedInteger(blindAnnotation.humanScore) || !blindAnnotation.humanRationale.trim()) {
+      setValidationError('Human score must be an integer between 0 and 100, and rationale is required.');
       return;
     }
 
+    const nextTimestamp = new Date().toISOString();
     const nextBlind: Q2Task2BlindModeAnnotation = {
       ...blindAnnotation,
       status: 'saved',
-      updatedAt: new Date().toISOString(),
+      updatedAt: nextTimestamp,
     };
+    const nextModes = Object.fromEntries(
+      Object.entries(record.annotationsByMode).map(([modeKey, modeAnnotation]) => [
+        modeKey,
+        {
+          ...modeAnnotation,
+          status: 'saved',
+          updatedAt: nextTimestamp,
+        },
+      ]),
+    ) as Q2Task2AnnotationRecord['annotationsByMode'];
 
     const nextRecord: Q2Task2AnnotationRecord = {
       ...record,
       status: 'saved',
-      updatedAt: nextBlind.updatedAt,
+      updatedAt: nextTimestamp,
       annotationsByMode: {
-        ...record.annotationsByMode,
-        judge_visible: visibleAnnotation,
+        ...nextModes,
         blind_human_scoring: nextBlind,
       },
     };
@@ -393,10 +425,14 @@ export function Q2Task2Form({
               onChange={(humanScore) =>
                 setRecord((current) => ({
                   ...current,
+                  status: 'draft',
+                  updatedAt: new Date().toISOString(),
                   annotationsByMode: {
                     ...current.annotationsByMode,
                     blind_human_scoring: {
                       ...blindAnnotation,
+                      status: 'draft',
+                      updatedAt: new Date().toISOString(),
                       humanScore,
                     },
                   },
@@ -410,10 +446,14 @@ export function Q2Task2Form({
               onChange={(humanRationale) =>
                 setRecord((current) => ({
                   ...current,
+                  status: 'draft',
+                  updatedAt: new Date().toISOString(),
                   annotationsByMode: {
                     ...current.annotationsByMode,
                     blind_human_scoring: {
                       ...blindAnnotation,
+                      status: 'draft',
+                      updatedAt: new Date().toISOString(),
                       humanRationale,
                     },
                   },
