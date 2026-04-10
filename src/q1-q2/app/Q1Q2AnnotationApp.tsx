@@ -73,23 +73,23 @@ import type {
 } from '../types';
 
 const TRACK_LABELS: Record<TrackKey, string> = {
-  Q1: 'Q1 Benchmark Construction',
-  Q2: 'Q2 LLM-as-a-Judge Alignment',
+  Q1: '基准构建数据标注',
+  Q2: '评测对齐数据标注',
 };
 
 const TASK_LABELS: Record<TaskKey, string> = {
-  task1: 'Task 1',
-  task2: 'Task 2',
-  task3: 'Task 3',
-  task4: 'Task 4',
+  task1: '任务1：记忆抽取审核',
+  task2: '任务2：记忆更新审核',
+  task3: '任务3：查询与记忆匹配审核',
+  task4: '任务4：能力定向审核',
 };
 
 const ABILITY_LABELS: Record<AbilityKey, string> = {
-  ability1: 'Ability 1',
-  ability2: 'Ability 2',
-  ability3: 'Ability 3',
-  ability4: 'Ability 4',
-  ability5: 'Ability 5',
+  ability1: '能力1',
+  ability2: '能力2',
+  ability3: '能力3',
+  ability4: '能力4',
+  ability5: '能力5',
 };
 
 function downloadJson(data: unknown, filename: string) {
@@ -205,9 +205,15 @@ export default function Q1Q2AnnotationApp() {
     ? new Date(currentSavedAnnotation.updatedAt)
     : null;
   const currentSampleSaveLabel = currentSampleSavedAt
-    ? `${currentSavedAnnotation?.status === 'saved' ? 'Saved' : 'Draft autosaved'} ${currentSampleSavedAt.toLocaleString()}`
-    : 'Current item not saved yet';
+    ? `${currentSavedAnnotation?.status === 'saved' ? '已保存' : '草稿已自动保存'} ${currentSampleSavedAt.toLocaleString()}`
+    : '当前样本尚未保存';
   const progressPercent = activeEntry ? ((currentItemIndex + 1) / activeEntry.itemCount) * 100 : 0;
+  const useTask123ReviewLayout =
+    activeEntry?.track === 'Q1' &&
+    (activeEntry.task === 'task1' ||
+      activeEntry.task === 'task2' ||
+      activeEntry.task === 'task3' ||
+      activeEntry.task === 'task4');
 
   const getPreferredItemIndexForEntry = (nextEntry: ManualCheckDatasetEntry): number => {
     if (!nextEntry.itemCount) {
@@ -254,7 +260,7 @@ export default function Q1Q2AnnotationApp() {
         restoredAnnotations = parsed.savedAnnotations ?? {};
         restoredTime = parsed.updatedAt ? new Date(parsed.updatedAt) : null;
       } catch {
-        toast.warning('Failed to restore saved annotations from local storage.');
+      toast.warning('未能从本地存储恢复标注记录。');
       }
     }
 
@@ -311,7 +317,7 @@ export default function Q1Q2AnnotationApp() {
       } catch (error) {
         if (!isCancelled) {
           setCurrentItem(null);
-          toast.error(error instanceof Error ? error.message : 'Failed to load item.');
+      toast.error(error instanceof Error ? error.message : '加载当前样本失败。');
         }
       } finally {
         if (!isCancelled) {
@@ -353,16 +359,16 @@ export default function Q1Q2AnnotationApp() {
       const loadedDataset = await loadManualCheckDataset(uploadedFileIndex);
       applyLoadedDataset(loadedDataset);
 
-      toast.success(`Loaded ${loadedDataset.entries.length} dataset views from ${loadedDataset.rootName}.`);
+      toast.success(`已从 ${loadedDataset.rootName} 加载 ${loadedDataset.entries.length} 个标注视图。`);
 
       if (loadedDataset.warnings.length > 0) {
-        toast.info('Dataset loaded with warnings. Review the import notes in the workbench.');
+        toast.info('数据集已加载，但包含提示信息，请查看导入说明。');
       }
     } catch (error) {
       setDataset(null);
       setActiveEntryId(null);
       setCurrentItem(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to import dataset folder.');
+      toast.error(error instanceof Error ? error.message : '导入数据集文件夹失败。');
     } finally {
       setIsImporting(false);
     }
@@ -383,7 +389,7 @@ export default function Q1Q2AnnotationApp() {
         const { dataset: importedDataset, savedAnnotations: importedAnnotations } =
           createDatasetFromMergedBundle(bundle);
         applyLoadedDataset(importedDataset, importedAnnotations);
-        toast.success(`Imported merged dataset bundle from ${bundle.rootName}.`);
+        toast.success(`已从 ${bundle.rootName} 导入合并数据包。`);
         return;
       }
 
@@ -402,11 +408,9 @@ export default function Q1Q2AnnotationApp() {
       }));
       setLastSavedTime(getLatestAnnotationTime(importedAnnotations) ?? new Date());
       setAnnotationPaneVersion((value) => value + 1);
-      toast.success(
-        `Imported ${bundle.annotations.length} ${bundle.annotationStatus} annotation records from bundle.`,
-      );
+      toast.success(`已从数据包导入 ${bundle.annotations.length} 条标注记录。`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to import bundle JSON.');
+      toast.error(error instanceof Error ? error.message : '导入 JSON 数据包失败。');
     } finally {
       setIsImporting(false);
     }
@@ -489,13 +493,13 @@ export default function Q1Q2AnnotationApp() {
 
     const target = Number.parseInt(jumpInput, 10);
     if (Number.isNaN(target)) {
-      toast.error('Enter a valid item number.');
+      toast.error('请输入有效的样本编号。');
       return;
     }
 
     const nextIndex = target - 1;
     if (nextIndex < 0 || nextIndex >= activeEntry.itemCount) {
-      toast.error(`Item number must be between 1 and ${activeEntry.itemCount}.`);
+      toast.error(`样本编号必须在 1 到 ${activeEntry.itemCount} 之间。`);
       return;
     }
 
@@ -552,7 +556,7 @@ export default function Q1Q2AnnotationApp() {
   };
 
   const handleSaveAnnotation = (annotation: AnySupportedAnnotation) => {
-    upsertAnnotationRecord(annotation, 'Annotation saved.');
+    upsertAnnotationRecord(annotation, '标注已保存。');
   };
 
   const handleDownloadBundles = async () => {
@@ -582,11 +586,11 @@ export default function Q1Q2AnnotationApp() {
       const downloadedLabels = [
         savedCount > 0 ? 'saved annotations' : null,
         draftCount > 0 ? 'draft annotations' : null,
-        'merged dataset',
+        '合并数据包',
       ].filter(Boolean);
-      toast.success(`Downloaded ${downloadedLabels.join(', ')} bundle(s).`);
+      toast.success(`已导出：${downloadedLabels.join('、')}。`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to prepare export bundles.');
+      toast.error(error instanceof Error ? error.message : '导出数据包失败。');
     } finally {
       setIsExportingBundles(false);
     }
@@ -616,19 +620,20 @@ export default function Q1Q2AnnotationApp() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-700">
-                  Q1/Q2 Workbench
+                  中文标注工作台
                 </Badge>
                 <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-600">
-                  Manual check dataset
+                  人工标注数据集
                 </Badge>
               </div>
               <div className="flex items-center gap-3">
                 <Layers3 className="h-7 w-7 text-slate-700" />
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Q1/Q2 Annotation Workbench</h1>
+                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950">中文数据标注工作台</h1>
                   <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-                    A task-aware annotation workspace for <code>manual_check_data</code>, with folder import,
-                    lazy sample loading, requirement-guided review, and per-task human annotation flows for Q1 and Q2.
+                    这是一个面向任务的数据标注工作台，支持旧版 <code>manual_check_data</code> 导出数据，
+                    也支持新版 <code>task123_session_packets</code> 和 <code>chunks</code> 会话级基准构建数据。
+                    支持文件夹导入、样本懒加载、按任务展示说明，以及 Q1 task1-4 的展示即编辑标注流程。
                   </p>
                 </div>
               </div>
@@ -643,7 +648,7 @@ export default function Q1Q2AnnotationApp() {
                   className="gap-2 rounded-xl border-slate-300 bg-white shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Reset import
+                  重新导入
                 </Button>
                 <Button
                   type="button"
@@ -653,7 +658,7 @@ export default function Q1Q2AnnotationApp() {
                   className="gap-2 rounded-xl border-slate-300 bg-white shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 hover:shadow"
                 >
                   <FileJson className="h-4 w-4" />
-                  Import bundle
+                  导入标注结果
                 </Button>
                 <Button
                   type="button"
@@ -663,7 +668,7 @@ export default function Q1Q2AnnotationApp() {
                   className="gap-2 rounded-xl shadow-sm transition-all hover:shadow-md"
                 >
                   <Archive className="h-4 w-4" />
-                  {isExportingBundles ? 'Preparing bundles...' : 'Download bundles'}
+                  {isExportingBundles ? '正在准备导出...' : '导出标注结果'}
                 </Button>
                 <Button
                   type="button"
@@ -685,7 +690,7 @@ export default function Q1Q2AnnotationApp() {
                   className="gap-2 rounded-xl shadow-sm transition-all hover:shadow-md"
                 >
                   <ArrowDownToLine className="h-4 w-4" />
-                  Download current item
+                  导出当前样本
                 </Button>
               </div>
             ) : null}
@@ -704,29 +709,32 @@ export default function Q1Q2AnnotationApp() {
               <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-white to-indigo-50/40 px-5 py-5 sm:px-6">
                 <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                   <Database className="h-5 w-5 text-slate-700" />
-                  Expected dataset shape
+                  支持的数据格式
                 </CardTitle>
                 <CardDescription className="text-slate-600">
-                  The current implementation is tuned for the exported folder structure already present in this
-                  workspace.
+                  当前导入器同时支持旧版人工检查导出结构和新版基准构建会话数据结构。
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 px-5 pb-6 pt-6 text-sm text-slate-600 sm:px-6">
                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Key files</p>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">关键文件</p>
                   <ul className="list-disc space-y-1.5 pl-4">
                     <li><code>run_summary.json</code></li>
                     <li><code>benchmark_construction_check_data/**/manifest.json</code></li>
                     <li><code>LLM_as_judge_Human_Alignment_data/**/manifest.json</code></li>
                     <li><code>sessions/&lt;session&gt;__&lt;canonical&gt;/item.json</code></li>
+                    <li><code>cleaned_data/task123_session_packets/manifest.json</code></li>
+                    <li><code>cleaned_data/task123_session_packets/sess_*.json</code></li>
+                    <li><code>chunks/chunk_*/manifest.json</code></li>
+                    <li><code>chunks/chunk_*/sess_*.json</code></li>
                   </ul>
                 </div>
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-200/25">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">What this slice proves</p>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">当前能力说明</p>
                   <ul className="list-disc space-y-1.5 pl-4">
-                    <li>The app can discover Q1/Q2 dataset views from the folder.</li>
-                    <li>The app can map manifest rows to the correct <code>item.json</code>.</li>
-                    <li>The app can browse samples without eagerly reading the whole dataset.</li>
+                    <li>可以从文件夹中自动发现各类标注视图。</li>
+                    <li>可以把 manifest 行或会话包映射到正确的当前样本。</li>
+                    <li>可以在不预加载整个数据集的前提下逐条浏览样本。</li>
                   </ul>
                 </div>
               </CardContent>
@@ -740,15 +748,15 @@ export default function Q1Q2AnnotationApp() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <CardTitle className="flex items-center gap-2 text-base text-slate-900">
                       <FolderTree className="h-5 w-5 text-slate-700" />
-                      Dataset workbench
+                      数据集工作台
                     </CardTitle>
                     <CardDescription className="text-sm text-slate-600">
-                      Imported from <code>{dataset.rootName}</code> with {dataset.entries.length} discovered dataset views.
+                      已从 <code>{dataset.rootName}</code> 导入，识别到 {dataset.entries.length} 个标注视图。
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
-                      {entrySavedCount} / {activeEntry?.itemCount ?? 0} annotated in this view
+                      当前视图已标注 {entrySavedCount} / {activeEntry?.itemCount ?? 0}
                     </Badge>
                     <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
                       {currentSampleSaveLabel}
@@ -761,10 +769,10 @@ export default function Q1Q2AnnotationApp() {
                 <div className="rounded-2xl border border-slate-200/70 bg-slate-50/60 p-5 shadow-inner ring-1 ring-slate-200/25">
                   <div className="flex flex-wrap items-end gap-4">
                       <div className="min-w-[220px] flex-1 space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Track</label>
+                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">数据类型</label>
                         <Select value={activeEntry?.track} onValueChange={handleTrackChange}>
                           <SelectTrigger className="h-10 rounded-xl border-slate-300 bg-white">
-                            <SelectValue placeholder="Select track" />
+                            <SelectValue placeholder="选择数据类型" />
                           </SelectTrigger>
                           <SelectContent>
                             {trackOptions.map((track) => (
@@ -777,10 +785,10 @@ export default function Q1Q2AnnotationApp() {
                       </div>
 
                       <div className="min-w-[220px] flex-1 space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Task</label>
+                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">标注任务</label>
                         <Select value={activeEntry?.task} onValueChange={handleTaskChange}>
                           <SelectTrigger className="h-10 rounded-xl border-slate-300 bg-white">
-                            <SelectValue placeholder="Select task" />
+                            <SelectValue placeholder="选择标注任务" />
                           </SelectTrigger>
                           <SelectContent>
                             {taskOptions.map((task) => (
@@ -793,18 +801,18 @@ export default function Q1Q2AnnotationApp() {
                       </div>
 
                       <div className="min-w-[220px] flex-1 space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ability</label>
+                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">能力维度</label>
                         <Select
                           value={activeEntry?.ability ?? 'none'}
                           onValueChange={handleAbilityChange}
                           disabled={activeEntry?.task !== 'task4'}
                         >
                           <SelectTrigger className="h-10 rounded-xl border-slate-300 bg-white">
-                            <SelectValue placeholder="No ability" />
+                            <SelectValue placeholder="无能力维度" />
                           </SelectTrigger>
                           <SelectContent>
                             {activeEntry?.task !== 'task4' ? (
-                              <SelectItem value="none">Not applicable</SelectItem>
+                              <SelectItem value="none">不适用</SelectItem>
                             ) : (
                               abilityOptions.map((ability) => (
                                 <SelectItem key={ability} value={ability}>
@@ -821,13 +829,13 @@ export default function Q1Q2AnnotationApp() {
                 <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-6 shadow-sm ring-1 ring-slate-200/30">
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                         <div className="space-y-2 xl:min-w-[240px]">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current progress</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">当前进度</p>
                           <div className="flex items-end gap-3">
                             <p className="text-2xl font-semibold tracking-tight text-slate-950">
                               {activeEntry ? `${currentItemIndex + 1} / ${activeEntry.itemCount}` : '0 / 0'}
                             </p>
                             <p className="pb-1 text-xs text-slate-500">
-                              {activeEntry ? `${progressPercent.toFixed(1)}% through this view` : 'No active view'}
+                              {activeEntry ? `当前视图进度 ${progressPercent.toFixed(1)}%` : '暂无活动视图'}
                             </p>
                           </div>
                         </div>
@@ -842,7 +850,7 @@ export default function Q1Q2AnnotationApp() {
                               className="gap-2 rounded-xl border-slate-300 bg-white shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50"
                             >
                               <ChevronLeft className="h-4 w-4" />
-                              Previous
+                              上一个
                             </Button>
                             <Button
                               type="button"
@@ -861,7 +869,7 @@ export default function Q1Q2AnnotationApp() {
                               }
                               className="gap-2 rounded-xl shadow-md transition-all hover:shadow-lg"
                             >
-                              Next
+                              下一个
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           </div>
@@ -874,7 +882,7 @@ export default function Q1Q2AnnotationApp() {
                                   handleJump();
                                 }
                               }}
-                              placeholder="Jump to item #"
+                              placeholder="跳转到样本编号"
                               className="h-10 min-w-[8rem] flex-1 rounded-xl border-slate-300 bg-white shadow-sm transition-shadow focus-visible:shadow-md"
                             />
                             <Button
@@ -883,7 +891,7 @@ export default function Q1Q2AnnotationApp() {
                               onClick={handleJump}
                               className="rounded-xl shadow-sm transition-all hover:shadow-md"
                             >
-                              Go
+                              跳转
                             </Button>
                           </div>
                         </div>
@@ -893,36 +901,36 @@ export default function Q1Q2AnnotationApp() {
 
                 <div className="flex flex-wrap gap-4 lg:flex-nowrap">
                   <SummaryStat
-                    label="Current view"
-                    value={activeEntry ? getEntryLabel(activeEntry) : 'No selection'}
+                    label="当前视图"
+                    value={activeEntry ? getEntryLabel(activeEntry) : '未选择'}
                     className="min-w-[220px] flex-[1.35]"
                   />
                   <SummaryStat
-                    label="Annotated"
+                    label="已标注"
                     value={`${entrySavedCount} / ${activeEntry?.itemCount ?? 0}`}
                     className="flex-1"
                   />
                   <SummaryStat
-                    label="Session"
-                    value={currentItem?.manifestRow.session_id ?? 'Loading...'}
+                    label="会话 ID"
+                    value={currentItem?.manifestRow.session_id ?? '加载中...'}
                     tone="muted"
                     className="min-w-[190px] flex-1"
                   />
                   <SummaryStat
-                    label="Assigned model"
-                    value={currentAssignedModel ?? 'Not assigned'}
+                    label="指定模型"
+                    value={currentAssignedModel ?? '未指定'}
                     tone="muted"
                     className="min-w-[180px] flex-1"
                   />
                   <SummaryStat
-                    label="Canonical ID"
-                    value={currentItem?.manifestRow.canonical_id ?? 'N/A'}
+                    label="样本 ID"
+                    value={currentItem?.manifestRow.canonical_id ?? '无'}
                     tone="muted"
                     className="min-w-[180px] flex-1"
                   />
                   <SummaryStat
-                    label="Autosave"
-                    value={lastSavedTime ? `Local backup ${lastSavedTime.toLocaleTimeString()}` : 'No local backup'}
+                    label="自动保存"
+                    value={lastSavedTime ? `本地备份 ${lastSavedTime.toLocaleTimeString()}` : '暂无本地备份'}
                     tone="muted"
                     className="min-w-[190px] flex-1"
                   />
@@ -935,10 +943,10 @@ export default function Q1Q2AnnotationApp() {
                 <CardHeader className="border-b border-amber-100">
                   <CardTitle className="flex items-center gap-2 text-amber-900">
                     <AlertTriangle className="h-5 w-5" />
-                    Import notes
+                    导入提示
                   </CardTitle>
                   <CardDescription className="text-amber-800">
-                    These warnings do not block browsing, but they may matter for partial imports.
+                    这些提示不会阻止浏览数据，但在部分导入场景下可能影响理解。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">
@@ -951,24 +959,30 @@ export default function Q1Q2AnnotationApp() {
               </Card>
             ) : null}
 
-            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)] lg:gap-10">
+            <div
+              className={
+                useTask123ReviewLayout
+                  ? 'grid grid-cols-1 items-start gap-6'
+                  : 'grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)] lg:gap-10'
+              }
+            >
               <div className="min-w-0 space-y-6">
                 {isLoadingItem ? (
                   <Card className={sampleBlockCardClass}>
                     <CardHeader className={sampleBlockHeaderClass}>
                       <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                         <FileJson className="h-5 w-5 text-slate-700" />
-                        Sample display
+                        样本展示
                       </CardTitle>
                       <CardDescription className="text-slate-600">
-                        Loading the task-aware display for the current item.
+                        正在加载当前样本的任务展示内容。
                       </CardDescription>
                     </CardHeader>
                     <CardContent className={sampleBlockContentClass}>
                       <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-50/80 shadow-inner ring-1 ring-slate-200/20">
                         <div className="flex items-center gap-3 text-slate-600">
                           <LoaderCircle className="h-5 w-5 animate-spin" />
-                          Loading current item...
+                          正在加载当前样本...
                         </div>
                       </div>
                     </CardContent>
@@ -978,46 +992,50 @@ export default function Q1Q2AnnotationApp() {
                     loadedItem={currentItem}
                     evaluationMode={evaluationMode}
                     currentAnnotation={currentSavedAnnotation}
+                    onDraftChange={handleDraftAnnotation}
+                    onSave={handleSaveAnnotation}
                   />
                 ) : (
                   <Card className={sampleBlockCardClass}>
                     <CardHeader className={sampleBlockHeaderClass}>
                       <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                         <FileJson className="h-5 w-5 text-slate-700" />
-                        Sample display
+                        样本展示
                       </CardTitle>
                     </CardHeader>
                     <CardContent className={sampleBlockContentClass}>
                       <div className="rounded-2xl border border-dashed border-slate-300/90 bg-slate-50/80 p-8 text-center text-sm text-slate-600 shadow-inner ring-1 ring-slate-200/20">
-                        No item is currently loaded.
+                        当前尚未加载样本。
                       </div>
                     </CardContent>
                   </Card>
                 )}
               </div>
 
-              <div
-                className="min-w-0 space-y-6 rounded-2xl border border-slate-200/70 bg-white/80 p-5 shadow-md ring-1 ring-slate-200/35 backdrop-blur-md lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:p-6"
-              >
-                {requirement ? <TaskRequirementPanel requirement={requirement} /> : null}
+              {!useTask123ReviewLayout ? (
+                <div
+                  className="min-w-0 space-y-6 rounded-2xl border border-slate-200/70 bg-white/80 p-5 shadow-md ring-1 ring-slate-200/35 backdrop-blur-md lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:p-6"
+                >
+                  {requirement ? <TaskRequirementPanel requirement={requirement} /> : null}
 
-                {requirement && activeEntry ? (
-                  <Separator className="bg-slate-200/80" />
-                ) : null}
+                  {requirement && activeEntry ? (
+                    <Separator className="bg-slate-200/80" />
+                  ) : null}
 
-                {activeEntry ? (
-                  <AnnotationPane
-                    key={`${annotationPaneVersion}:${activeEntry.id}:${currentDraftKey ?? 'no-item'}`}
-                    entry={activeEntry}
-                    loadedItem={currentItem}
-                    currentAnnotation={currentSavedAnnotation}
-                    evaluationMode={evaluationMode}
-                    onEvaluationModeChange={setEvaluationMode}
-                    onDraftChange={handleDraftAnnotation}
-                    onSave={handleSaveAnnotation}
-                  />
-                ) : null}
-              </div>
+                  {activeEntry ? (
+                    <AnnotationPane
+                      key={`${annotationPaneVersion}:${activeEntry.id}:${currentDraftKey ?? 'no-item'}`}
+                      entry={activeEntry}
+                      loadedItem={currentItem}
+                      currentAnnotation={currentSavedAnnotation}
+                      evaluationMode={evaluationMode}
+                      onEvaluationModeChange={setEvaluationMode}
+                      onDraftChange={handleDraftAnnotation}
+                      onSave={handleSaveAnnotation}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         )}

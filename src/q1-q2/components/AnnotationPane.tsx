@@ -47,6 +47,30 @@ function buildReviewSeeds(judgeOutput: Record<string, any> | undefined) {
   ];
 }
 
+function buildQ1Task1GoldMemorySeeds(loadedItem?: LoadedManualCheckItem | null) {
+  const original = asRecord(loadedItem?.itemData?.original);
+  const probe = asRecord(original?.probe);
+
+  return Array.isArray(probe?.ground_truth_memories)
+    ? probe.ground_truth_memories
+        .map((item: unknown, index: number) => {
+          const record = asRecord(item);
+          if (!record || !String(record.value ?? '').trim()) {
+            return null;
+          }
+
+          return {
+            ...record,
+            memory_id:
+              typeof record.memory_id === 'string' && record.memory_id.trim()
+                ? record.memory_id
+                : `memory-${index + 1}`,
+          };
+        })
+        .filter(Boolean)
+    : [];
+}
+
 function buildQ1Task2NewDialogueSeeds(loadedItem?: LoadedManualCheckItem | null) {
   const original = asRecord(loadedItem?.itemData?.original);
   const record = asRecord(original?.record);
@@ -78,18 +102,17 @@ function buildQ1Task2UpdatedMemorySeeds(loadedItem?: LoadedManualCheckItem | nul
     ? original.answer
         .map((item: unknown, index: number) => {
           const record = asRecord(item);
-          const value = record && typeof record.value === 'string' ? record.value : '';
 
-          if (!value.trim()) {
+          if (!record || !String(record.value ?? '').trim()) {
             return null;
           }
 
           return {
-            memoryId:
-              record && typeof record.memory_id === 'string' && record.memory_id.trim()
+            ...record,
+            memory_id:
+              typeof record.memory_id === 'string' && record.memory_id.trim()
                 ? record.memory_id
                 : `memory-${index + 1}`,
-            value,
           };
         })
         .filter(Boolean)
@@ -99,6 +122,12 @@ function buildQ1Task2UpdatedMemorySeeds(loadedItem?: LoadedManualCheckItem | nul
 function getQ1Task3QuerySeed(loadedItem?: LoadedManualCheckItem | null): string {
   const original = asRecord(loadedItem?.itemData?.original);
   return original && typeof original.query === 'string' ? original.query : '';
+}
+
+function getQ1Task3SelectedMemorySeed(loadedItem?: LoadedManualCheckItem | null): Record<string, unknown> | null {
+  const original = asRecord(loadedItem?.itemData?.original);
+  const selectedMemory = asRecord(original?.selected_memory);
+  return selectedMemory ? { ...selectedMemory } : null;
 }
 
 function buildQuerySeeds(loadedItem?: LoadedManualCheckItem | null) {
@@ -215,6 +244,7 @@ export function AnnotationPane({
       <Q1Task1Form
         key={`${entry.id}-q1-task1`}
         initialValue={currentAnnotation?.formType === 'Q1:task1' ? currentAnnotation : undefined}
+        goldMemorySeed={buildQ1Task1GoldMemorySeeds(loadedItem)}
         onDraftChange={onDraftChange}
         onSave={onSave}
       />
@@ -240,6 +270,7 @@ export function AnnotationPane({
         key={`${entry.id}-q1-task3`}
         initialValue={currentAnnotation?.formType === 'Q1:task3' ? currentAnnotation : undefined}
         querySeed={getQ1Task3QuerySeed(loadedItem)}
+        selectedMemorySeed={getQ1Task3SelectedMemorySeed(loadedItem)}
         onDraftChange={onDraftChange}
         onSave={onSave}
       />

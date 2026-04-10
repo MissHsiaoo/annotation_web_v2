@@ -37,7 +37,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
             onClick={() => setIsOpen((current) => !current)}
             className="gap-2 rounded-xl border-slate-300 bg-white"
           >
-            {isOpen ? 'Hide details' : 'Show details'}
+            {isOpen ? '隐藏说明' : '查看说明'}
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </div>
@@ -48,7 +48,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <Eye className="h-4 w-4 text-slate-600" />
-              <h3 className="text-sm font-semibold text-slate-900">What to review</h3>
+              <h3 className="text-sm font-semibold text-slate-900">查看内容</h3>
             </div>
             <ul className="list-disc space-y-1.5 pl-4 text-sm leading-6 text-slate-600">
               {requirement.whatToReview.map((item) => (
@@ -59,7 +59,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-slate-600" />
-              <h3 className="text-sm font-semibold text-slate-900">Judging criteria</h3>
+              <h3 className="text-sm font-semibold text-slate-900">判断标准</h3>
             </div>
             <ul className="list-disc space-y-1.5 pl-4 text-sm leading-6 text-slate-600">
               {requirement.judgingCriteria.map((item) => (
@@ -70,7 +70,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-slate-600" />
-              <h3 className="text-sm font-semibold text-slate-900">Checklist</h3>
+              <h3 className="text-sm font-semibold text-slate-900">检查清单</h3>
             </div>
             <ul className="list-disc space-y-1.5 pl-4 text-sm leading-6 text-slate-600">
               {requirement.checklist.map((item) => (
@@ -81,7 +81,7 @@ export function TaskRequirementPanel({ requirement }: TaskRequirementPanelProps)
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <Target className="h-4 w-4 text-slate-600" />
-              <h3 className="text-sm font-semibold text-slate-900">Output expectation</h3>
+              <h3 className="text-sm font-semibold text-slate-900">输出要求</h3>
             </div>
             <ul className="list-disc space-y-1.5 pl-4 text-sm leading-6 text-slate-600">
               {requirement.outputExpectation.map((item) => (

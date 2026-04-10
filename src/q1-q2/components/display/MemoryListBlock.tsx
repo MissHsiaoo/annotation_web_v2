@@ -73,7 +73,7 @@ export function MemoryListBlock({
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
-              {filteredItems.length} shown
+              显示 {filteredItems.length} 条
             </Badge>
             {collapsible ? (
               <button
@@ -81,7 +81,7 @@ export function MemoryListBlock({
                 onClick={() => setIsExpanded((current) => !current)}
                 className="rounded-lg border border-slate-200 bg-white px-2 py-1 font-medium text-slate-600 transition-colors hover:bg-slate-100"
               >
-                {isExpanded ? 'Collapse' : 'Expand'}
+                {isExpanded ? '收起' : '展开'}
               </button>
             ) : null}
           </div>
@@ -96,7 +96,7 @@ export function MemoryListBlock({
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search this list"
+                placeholder="搜索当前列表"
                 className="rounded-xl border-slate-300 bg-white pl-9 shadow-sm"
               />
             </div>
@@ -135,21 +135,21 @@ export function MemoryListBlock({
 
                   {reasoning ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Reasoning</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">理由</p>
                       <TranslatedText text={reasoning} translationEnabled={translationEnabled} />
                     </div>
                   ) : null}
 
                   {evidenceText ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">证据</p>
                       <TranslatedText text={evidenceText} translationEnabled={translationEnabled} />
                     </div>
                   ) : null}
 
                   <details className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <summary className="cursor-pointer text-xs font-medium text-slate-600">
-                      Show raw item
+                      查看原始数据
                     </summary>
                     <pre className="mt-3 overflow-auto whitespace-pre-wrap break-all text-xs text-slate-600">
                       {JSON.stringify(item, null, 2)}

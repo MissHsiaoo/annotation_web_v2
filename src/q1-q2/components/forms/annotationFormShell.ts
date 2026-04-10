@@ -25,10 +25,10 @@ export const annotationValidationErrorClass =
 
 export function formatAnnotationSaveSummary(status: AnnotationStatus, updatedAt: string): string {
   if (!updatedAt) {
-    return 'Not saved yet';
+    return '尚未保存';
   }
 
-  return `${status === 'saved' ? 'Saved' : 'Draft autosaved'} at ${new Date(updatedAt).toLocaleString()}`;
+  return `${status === 'saved' ? '已保存' : '草稿已自动保存'}：${new Date(updatedAt).toLocaleString()}`;
 }
 
 export function withDraftMeta<T extends { status: AnnotationStatus; updatedAt: string }>(

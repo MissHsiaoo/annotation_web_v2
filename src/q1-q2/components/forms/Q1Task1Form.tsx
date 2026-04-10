@@ -20,39 +20,21 @@ import {
   useAnnotationDraftSync,
   withDraftMeta,
 } from './annotationFormShell';
-import { CheckboxField, RadioField, TextAreaField } from './FormFields';
-
-const VERDICT_OPTIONS = [
-  { value: 'reasonable', label: 'Reasonable' },
-  { value: 'partially_reasonable', label: 'Partially reasonable' },
-  { value: 'unreasonable', label: 'Unreasonable' },
-];
-
-const TERNARY_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'no', label: 'No' },
-];
-
-const BINARY_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'no', label: 'No' },
-];
-
-const ISSUE_TYPE_OPTIONS = [
-  { value: 'no_evidence', label: 'No evidence' },
-  { value: 'over_inference', label: 'Over-inference' },
-  { value: 'inaccurate_wording', label: 'Inaccurate wording' },
-  { value: 'other', label: 'Other' },
-];
+import {
+  cloneMemoryRecord,
+  type EditableMemoryRecord,
+  StructuredMemoryEditor,
+  validateMemoryRecords,
+} from './StructuredMemoryEditor';
 
 interface Q1Task1FormProps {
   initialValue?: Q1Task1Annotation;
+  goldMemorySeed: EditableMemoryRecord[];
   onDraftChange?: (annotation: Q1Task1Annotation) => void;
   onSave: (annotation: Q1Task1Annotation) => void;
 }
 
-function createEmptyAnnotation(): Q1Task1Annotation {
+function createEmptyAnnotation(goldMemorySeed: EditableMemoryRecord[]): Q1Task1Annotation {
   return {
     formType: 'Q1:task1',
     status: 'draft',
@@ -61,6 +43,7 @@ function createEmptyAnnotation(): Q1Task1Annotation {
     hasDialogueEvidence: 'yes',
     overInference: 'no',
     faithfulToOriginalMeaning: 'yes',
+    editableGoldMemories: goldMemorySeed.map(cloneMemoryRecord),
     issueTypes: [],
     evidenceNote: '',
     revisionSuggestion: '',
@@ -68,8 +51,24 @@ function createEmptyAnnotation(): Q1Task1Annotation {
   };
 }
 
-export function Q1Task1Form({ initialValue, onDraftChange, onSave }: Q1Task1FormProps) {
-  const startingValue = useMemo(() => initialValue ?? createEmptyAnnotation(), [initialValue]);
+function mergeSeeds(goldMemorySeed: EditableMemoryRecord[], existing?: Q1Task1Annotation): Q1Task1Annotation {
+  const fallback = existing ?? createEmptyAnnotation(goldMemorySeed);
+
+  if (fallback.editableGoldMemories?.length) {
+    return fallback;
+  }
+
+  return {
+    ...fallback,
+    editableGoldMemories: goldMemorySeed.map(cloneMemoryRecord),
+  };
+}
+
+export function Q1Task1Form({ initialValue, goldMemorySeed, onDraftChange, onSave }: Q1Task1FormProps) {
+  const startingValue = useMemo(
+    () => mergeSeeds(goldMemorySeed, initialValue),
+    [initialValue, goldMemorySeed],
+  );
   const [formState, setFormState] = useState<Q1Task1Annotation>(startingValue);
   const [validationError, setValidationError] = useState('');
 
@@ -80,23 +79,20 @@ export function Q1Task1Form({ initialValue, onDraftChange, onSave }: Q1Task1Form
     [formState.status, formState.updatedAt],
   );
 
-  const handleSave = () => {
-    if (!formState.overallVerdict) {
-      setValidationError('Overall verdict is required.');
-      return;
-    }
+  const editableGoldMemories = formState.editableGoldMemories ?? [];
 
-    if (
-      formState.overallVerdict !== 'reasonable' &&
-      formState.issueTypes.length === 0 &&
-      !formState.revisionSuggestion?.trim()
-    ) {
-      setValidationError('Add at least one issue type or a revision suggestion for non-reasonable cases.');
+  const handleSave = () => {
+    const cleanedMemories = editableGoldMemories.filter((item) => String(item.value ?? '').trim());
+    const nextValidationError = validateMemoryRecords(cleanedMemories);
+
+    if (nextValidationError) {
+      setValidationError(nextValidationError);
       return;
     }
 
     const nextAnnotation: Q1Task1Annotation = {
       ...formState,
+      editableGoldMemories: cleanedMemories,
       status: 'saved',
       updatedAt: new Date().toISOString(),
     };
@@ -111,9 +107,9 @@ export function Q1Task1Form({ initialValue, onDraftChange, onSave }: Q1Task1Form
       <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-slate-900">Annotation panel</CardTitle>
+            <CardTitle className="text-slate-900">直接编辑 Golden Memory Taxonomy</CardTitle>
             <CardDescription className="text-slate-600">
-              Q1 Task 1 benchmark construction review form.
+              保留原始 schema，每条 memory 的每个字段都可展示和修改。
             </CardDescription>
           </div>
           <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
@@ -122,86 +118,13 @@ export function Q1Task1Form({ initialValue, onDraftChange, onSave }: Q1Task1Form
         </div>
       </CardHeader>
       <CardContent className={annotationFormContentClass}>
-        <RadioField
-          label="Overall verdict"
-          value={formState.overallVerdict}
-          options={VERDICT_OPTIONS}
-          onChange={(value) =>
-            setFormState((current) =>
-              withDraftMeta(current, {
-                overallVerdict: value as Q1Task1Annotation['overallVerdict'],
-              }),
-            )
+        <StructuredMemoryEditor
+          title="Golden Memory 字段编辑"
+          description="不要改成简化 schema。需要新增 memory 时，会按当前 taxonomy 自动创建完整字段。"
+          memories={editableGoldMemories}
+          onChange={(editableGoldMemories) =>
+            setFormState((current) => withDraftMeta(current, { editableGoldMemories }))
           }
-        />
-
-        <RadioField
-          label="Does the memory have dialogue evidence?"
-          value={formState.hasDialogueEvidence}
-          options={TERNARY_OPTIONS}
-          onChange={(value) =>
-            setFormState((current) =>
-              withDraftMeta(current, {
-                hasDialogueEvidence: value as Q1Task1Annotation['hasDialogueEvidence'],
-              }),
-            )
-          }
-        />
-
-        <RadioField
-          label="Does the memory over-infer?"
-          value={formState.overInference}
-          options={BINARY_OPTIONS}
-          onChange={(value) =>
-            setFormState((current) =>
-              withDraftMeta(current, {
-                overInference: value as Q1Task1Annotation['overInference'],
-              }),
-            )
-          }
-        />
-
-        <RadioField
-          label="Is the memory faithful to the original meaning?"
-          value={formState.faithfulToOriginalMeaning}
-          options={TERNARY_OPTIONS}
-          onChange={(value) =>
-            setFormState((current) =>
-              withDraftMeta(current, {
-                faithfulToOriginalMeaning: value as Q1Task1Annotation['faithfulToOriginalMeaning'],
-              }),
-            )
-          }
-        />
-
-        <CheckboxField
-          label="Issue types"
-          values={formState.issueTypes}
-          options={ISSUE_TYPE_OPTIONS}
-          onChange={(issueTypes) => setFormState((current) => withDraftMeta(current, { issueTypes }))}
-        />
-
-        <TextAreaField
-          label="Evidence note"
-          value={formState.evidenceNote ?? ''}
-          onChange={(evidenceNote) => setFormState((current) => withDraftMeta(current, { evidenceNote }))}
-          placeholder="Explain which part of the dialogue supports or conflicts with the memory."
-        />
-
-        <TextAreaField
-          label="Revision suggestion"
-          value={formState.revisionSuggestion ?? ''}
-          onChange={(revisionSuggestion) =>
-            setFormState((current) => withDraftMeta(current, { revisionSuggestion }))
-          }
-          placeholder="Suggest how to revise the benchmark item if needed."
-        />
-
-        <TextAreaField
-          label="Annotator note"
-          value={formState.annotatorNote ?? ''}
-          onChange={(annotatorNote) => setFormState((current) => withDraftMeta(current, { annotatorNote }))}
-          placeholder="Optional extra note."
         />
 
         <div className={annotationFormFooterClass}>
@@ -211,7 +134,7 @@ export function Q1Task1Form({ initialValue, onDraftChange, onSave }: Q1Task1Form
 
           <div className="flex justify-end">
             <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
-              Save annotation
+              保存 Golden Memory
             </Button>
           </div>
         </div>

@@ -54,11 +54,11 @@ export function FileSourceSelector({ onFolderSelected, onBundleSelected, isLoadi
       <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-white to-sky-50/50 px-5 py-5 sm:px-6">
         <CardTitle className="flex items-center gap-2 text-slate-900">
           <FolderTree className="h-5 w-5 text-slate-700" />
-          Dataset Import
+          数据集导入
         </CardTitle>
         <CardDescription className="text-slate-600">
-          Upload the local <code>manual_check_data</code> folder. The workbench reads manifest indexes first
-          and only lazy-loads the active <code>item.json</code>.
+          上传旧版 <code>manual_check_data</code> 标注数据集，或新版
+          <code>task123_session_packets</code> / <code>chunks</code> 基准构建会话数据集。系统会自动识别数据结构，并按需懒加载当前样本。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 px-5 pb-6 pt-6 sm:px-6">
@@ -80,10 +80,10 @@ export function FileSourceSelector({ onFolderSelected, onBundleSelected, isLoadi
         <div className="rounded-2xl border border-dashed border-sky-300/90 bg-gradient-to-br from-sky-50/90 to-white p-6 shadow-inner ring-1 ring-sky-200/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-900">Recommended input</p>
+              <p className="text-sm font-medium text-slate-900">推荐导入方式</p>
               <p className="text-sm text-slate-600">
-                Select the root <code>manual_check_data</code> folder so the app can discover both Q1 and
-                Q2 tracks safely.
+                请选择数据集根目录。对于新的基准构建会话数据，你可以直接上传包含它的项目目录，
+                或直接上传 <code>task123_session_packets</code> / <code>chunks</code> 数据文件夹。
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -94,7 +94,7 @@ export function FileSourceSelector({ onFolderSelected, onBundleSelected, isLoadi
                 className="gap-2 self-start rounded-xl shadow-sm transition-shadow hover:shadow-md"
               >
                 <Upload className="h-4 w-4" />
-                {isLoading ? 'Reading folder...' : 'Upload Dataset Folder'}
+                {isLoading ? '正在读取文件夹...' : '上传数据集文件夹'}
               </Button>
               <Button
                 type="button"
@@ -104,7 +104,7 @@ export function FileSourceSelector({ onFolderSelected, onBundleSelected, isLoadi
                 className="gap-2 self-start rounded-xl border-slate-300 bg-white shadow-sm transition-shadow hover:shadow-md"
               >
                 <Upload className="h-4 w-4" />
-                Import Bundle JSON
+                导入标注结果 JSON
               </Button>
             </div>
           </div>
@@ -112,19 +112,22 @@ export function FileSourceSelector({ onFolderSelected, onBundleSelected, isLoadi
 
         <div className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-200/25">
-            <p className="mb-2 font-medium text-slate-900">Works well today</p>
+            <p className="mb-2 font-medium text-slate-900">当前支持</p>
             <ul className="list-disc space-y-1 pl-4">
-              <li>Root folder import from <code>manual_check_data</code></li>
-              <li>Manifest discovery for Q1 and Q2</li>
-              <li>Lazy loading of one <code>item.json</code> at a time</li>
+              <li>从 <code>manual_check_data</code> 根目录导入</li>
+              <li>从 <code>task123_session_packets</code> 根目录导入</li>
+              <li>从包含 <code>chunks/chunk_*/sess_*.json</code> 的根目录导入</li>
+              <li>自动发现各标注任务视图</li>
+              <li>按样本逐个懒加载</li>
             </ul>
           </div>
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-sm ring-1 ring-slate-200/25">
-            <p className="mb-2 font-medium text-slate-900">Included in this workbench</p>
+            <p className="mb-2 font-medium text-slate-900">工作台能力</p>
             <ul className="list-disc space-y-1 pl-4">
-              <li>Task-specific left-side display composition</li>
-              <li>Right-side annotation forms and save flow</li>
-              <li>Annotation bundle import and merged bundle import</li>
+              <li>按任务定制左侧样本展示</li>
+              <li>Q1 task1-4 可在样本展示区直接修改待标注数据</li>
+              <li>右侧中文标注表单与保存流程</li>
+              <li>支持导入标注结果与合并数据包</li>
             </ul>
           </div>
         </div>

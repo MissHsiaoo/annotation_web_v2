@@ -31,34 +31,34 @@ import {
 import { CheckboxField, NumberField, RadioField, TextAreaField } from './FormFields';
 
 const ALIGNMENT_OPTIONS = [
-  { value: 'aligned', label: 'Aligned' },
-  { value: 'partially_aligned', label: 'Partially aligned' },
-  { value: 'not_aligned', label: 'Not aligned' },
+  { value: 'aligned', label: '一致' },
+  { value: 'partially_aligned', label: '部分一致' },
+  { value: 'not_aligned', label: '不一致' },
 ];
 
 const TERNARY_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'no', label: 'No' },
+  { value: 'yes', label: '是' },
+  { value: 'partial', label: '部分' },
+  { value: 'no', label: '否' },
 ];
 
 const BINARY_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'no', label: 'No' },
+  { value: 'yes', label: '是' },
+  { value: 'no', label: '否' },
 ];
 
 const USED_MEMORY_OPTIONS = [
-  { value: 'used', label: 'Used' },
-  { value: 'not_used', label: 'Not used' },
-  { value: 'uncertain', label: 'Uncertain' },
+  { value: 'used', label: '已使用' },
+  { value: 'not_used', label: '未使用' },
+  { value: 'uncertain', label: '不确定' },
 ];
 
 const ISSUE_TYPE_OPTIONS = [
-  { value: 'used_memory_error', label: 'Used memory error' },
-  { value: 'score_error', label: 'Score error' },
-  { value: 'unsupported_reason', label: 'Unsupported reason' },
-  { value: 'inconsistency', label: 'Inconsistency' },
-  { value: 'other', label: 'Other' },
+  { value: 'used_memory_error', label: '记忆使用判断错误' },
+  { value: 'score_error', label: '分数判断错误' },
+  { value: 'unsupported_reason', label: '理由缺乏支撑' },
+  { value: 'inconsistency', label: '内部不一致' },
+  { value: 'other', label: '其他' },
 ];
 
 function createEmptyVisibleAnnotation(): Q2Task3VisibleModeAnnotation {
@@ -205,7 +205,7 @@ export function Q2Task3Form({
     }
 
     if (!isBoundedInteger(blindAnnotation.humanScore) || !blindAnnotation.humanRationale.trim()) {
-      setValidationError('Human score must be an integer between 0 and 100, and rationale is required.');
+      setValidationError('人工分数必须是 0 到 100 之间的整数，并且必须填写理由。');
       return;
     }
 
@@ -246,9 +246,9 @@ export function Q2Task3Form({
       <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-slate-900">Annotation panel</CardTitle>
+            <CardTitle className="text-slate-900">标注面板</CardTitle>
             <CardDescription className="text-slate-600">
-              Q2 Task 3 judge alignment review with dual evaluation modes.
+              Q2 任务3记忆使用评审对齐审核表单。
             </CardDescription>
           </div>
           <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
@@ -260,20 +260,20 @@ export function Q2Task3Form({
         <div className={annotationFormContextPanelClass}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">Evaluation mode</p>
+              <p className="text-sm font-semibold text-slate-900">评估模式</p>
               <p className="text-xs leading-5 text-slate-500">
-                Switch between visible judge alignment and blind human scoring.
+                在评审可见一致性审核与盲评人工打分之间切换。
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Label className="text-sm text-slate-600">Judge-visible</Label>
+              <Label className="text-sm text-slate-600">评审可见</Label>
               <Switch
                 checked={mode === 'blind_human_scoring'}
                 onCheckedChange={(checked) =>
                   onModeChange(checked ? 'blind_human_scoring' : 'judge_visible')
                 }
               />
-              <Label className="text-sm text-slate-600">Blind scoring</Label>
+              <Label className="text-sm text-slate-600">盲评打分</Label>
             </div>
           </div>
         </div>
@@ -281,7 +281,7 @@ export function Q2Task3Form({
         {mode === 'judge_visible' ? (
           <>
             <RadioField
-              label="Alignment verdict"
+              label="一致性结论"
               value={visibleAnnotation.alignmentVerdict}
               options={ALIGNMENT_OPTIONS}
               onChange={(value) =>
@@ -292,7 +292,7 @@ export function Q2Task3Form({
             />
 
             <RadioField
-              label="Did the judge correctly identify memory usage?"
+              label="评审器是否正确识别了记忆使用情况？"
               value={visibleAnnotation.usedMemoryCorrect}
               options={BINARY_OPTIONS}
               onChange={(value) =>
@@ -303,7 +303,7 @@ export function Q2Task3Form({
             />
 
             <RadioField
-              label="Is the score reasonable?"
+              label="分数是否合理？"
               value={visibleAnnotation.scoreReasonable}
               options={TERNARY_OPTIONS}
               onChange={(value) =>
@@ -314,7 +314,7 @@ export function Q2Task3Form({
             />
 
             <RadioField
-              label="Does the judge reason support the judgment?"
+              label="评审理由是否支持该判断？"
               value={visibleAnnotation.reasonSupportsJudgment}
               options={TERNARY_OPTIONS}
               onChange={(value) =>
@@ -326,7 +326,7 @@ export function Q2Task3Form({
             />
 
             <RadioField
-              label="Is the score consistent with the used-memory decision?"
+              label="分数是否与记忆使用判断一致？"
               value={visibleAnnotation.scoreConsistentWithUsedMemory}
               options={BINARY_OPTIONS}
               onChange={(value) =>
@@ -338,36 +338,36 @@ export function Q2Task3Form({
             />
 
             <CheckboxField
-              label="Issue types"
+              label="问题类型"
               values={visibleAnnotation.issueTypes}
               options={ISSUE_TYPE_OPTIONS}
               onChange={(issueTypes) => updateVisibleAnnotation({ issueTypes })}
             />
 
             <TextAreaField
-              label="Evidence note"
+              label="证据说明"
               value={visibleAnnotation.evidenceNote ?? ''}
               onChange={(evidenceNote) => updateVisibleAnnotation({ evidenceNote })}
-              placeholder="Explain why the judge is aligned or misaligned."
+              placeholder="说明评审器为何与人工判断一致或不一致。"
             />
 
             <TextAreaField
-              label="Suggested correction"
+              label="修正建议"
               value={visibleAnnotation.revisionSuggestion ?? ''}
               onChange={(revisionSuggestion) => updateVisibleAnnotation({ revisionSuggestion })}
-              placeholder="Write the corrected human judgment if needed."
+              placeholder="如有需要，写出修正后的人工判断。"
             />
           </>
         ) : (
           <>
             <NumberField
-              label="Human score"
+              label="人工分数"
               value={blindAnnotation.humanScore}
               onChange={(humanScore) => updateBlindAnnotation({ humanScore })}
             />
 
             <RadioField
-              label="Human judgment on memory usage"
+              label="人工对记忆使用的判断"
               value={blindAnnotation.usedMemoryHumanJudgment}
               options={USED_MEMORY_OPTIONS}
               onChange={(value) =>
@@ -379,10 +379,10 @@ export function Q2Task3Form({
             />
 
             <TextAreaField
-              label="Human rationale"
+              label="人工理由"
               value={blindAnnotation.humanRationale}
               onChange={(humanRationale) => updateBlindAnnotation({ humanRationale })}
-              placeholder="Give your independent reasoning without relying on the visible judge output."
+              placeholder="不依赖可见评审输出，写下你的独立判断理由。"
             />
           </>
         )}
@@ -394,7 +394,7 @@ export function Q2Task3Form({
 
           <div className="flex justify-end">
             <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
-              Save annotation
+              保存标注
             </Button>
           </div>
         </div>

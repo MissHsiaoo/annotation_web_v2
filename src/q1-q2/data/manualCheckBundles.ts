@@ -4,6 +4,7 @@ import {
 } from './manualCheckFolderLoader';
 import type {
   AnnotationExportBundle,
+  AnySupportedAnnotation,
   ImportableBundle,
   ManualCheckDataset,
   MergedDatasetBundleEntry,
@@ -57,6 +58,112 @@ export function buildAnnotationExportBundle(
   };
 }
 
+function applyDirectAnnotationEdits(
+  itemData: Record<string, unknown>,
+  annotation?: AnySupportedAnnotation,
+): Record<string, unknown> {
+  if (!annotation) {
+    return itemData;
+  }
+
+  const nextItemData = structuredClone(itemData) as Record<string, any>;
+  const original = nextItemData.original && typeof nextItemData.original === 'object' ? nextItemData.original : null;
+
+  if (!original) {
+    return {
+      ...nextItemData,
+      workbench_annotation: annotation,
+    };
+  }
+
+  if (annotation.formType === 'Q1:task1' && Array.isArray(annotation.editableGoldMemories)) {
+    original.probe = original.probe && typeof original.probe === 'object' ? original.probe : {};
+    original.probe.ground_truth_memories = annotation.editableGoldMemories
+      .filter((item) => String(item.value ?? '').trim())
+      .map((item, index) => ({
+        ...item,
+        memory_id: item.memory_id || `memory-${index + 1}`,
+      }));
+  }
+
+  if (annotation.formType === 'Q1:task2') {
+    original.answer = annotation.editableUpdatedMemories
+      .filter((item) => String(item.value ?? '').trim())
+      .map((item, index) => ({
+        ...item,
+        memory_id: item.memory_id || `memory-${index + 1}`,
+      }));
+  }
+
+  if (annotation.formType === 'Q1:task3' && annotation.queryText.trim()) {
+    original.query = annotation.queryText;
+    if (annotation.editableSelectedMemory) {
+      original.selected_memory = annotation.editableSelectedMemory;
+    }
+  }
+
+  if (annotation.formType === 'Q1:task4') {
+    if (Array.isArray(original.queries)) {
+      const queryEditsById = new Map(
+        annotation.subAnnotations.map((item) => [item.queryId, item.queryText]),
+      );
+
+      original.queries = original.queries.map((item: unknown, index: number) => {
+        const record =
+          item && typeof item === 'object' && !Array.isArray(item)
+            ? (item as Record<string, unknown>)
+            : {};
+        const queryId =
+          typeof record.query_id === 'string' && record.query_id.trim()
+            ? record.query_id
+            : `query-${index + 1}`;
+        const editedQuery = queryEditsById.get(queryId);
+
+        return editedQuery?.trim()
+          ? {
+              ...record,
+              query: editedQuery,
+            }
+          : record;
+      });
+    }
+
+    if (annotation.editableSelectedMemory) {
+      const editedMemory = annotation.editableSelectedMemory;
+      original.selected_memory = editedMemory;
+      original.task4_selected_memory = editedMemory;
+
+      if (typeof editedMemory.memory_id === 'string' && editedMemory.memory_id.trim()) {
+        original.memory_key = editedMemory.memory_id;
+        original.task4_selected_memory_id = editedMemory.memory_id;
+
+        if (Array.isArray(original.extracted_memory)) {
+          const memoryId = editedMemory.memory_id;
+          const matchedIndex = original.extracted_memory.findIndex(
+            (item: unknown) =>
+              item &&
+              typeof item === 'object' &&
+              !Array.isArray(item) &&
+              (item as Record<string, unknown>).memory_id === memoryId,
+          );
+
+          original.extracted_memory =
+            matchedIndex >= 0
+              ? original.extracted_memory.map((item: unknown, index: number) =>
+                  index === matchedIndex ? editedMemory : item,
+                )
+              : [...original.extracted_memory, editedMemory];
+        }
+      }
+    }
+  }
+
+  return {
+    ...nextItemData,
+    workbench_annotation: annotation,
+  };
+}
+
 export async function buildMergedDatasetExportBundle(
   dataset: ManualCheckDataset,
   savedAnnotations: Record<string, SavedAnnotationEntry>,
@@ -80,12 +187,7 @@ export async function buildMergedDatasetExportBundle(
       items.push({
         relativeItemPath: loadedItem.itemPath,
         manifestRow: loadedItem.manifestRow,
-        itemData: savedEntry
-          ? {
-              ...loadedItem.itemData,
-              workbench_annotation: savedEntry.annotation,
-            }
-          : loadedItem.itemData,
+        itemData: applyDirectAnnotationEdits(loadedItem.itemData, savedEntry?.annotation),
         annotation: savedEntry?.annotation,
       });
     }

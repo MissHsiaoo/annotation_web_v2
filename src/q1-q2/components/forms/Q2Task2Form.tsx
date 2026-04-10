@@ -39,25 +39,25 @@ interface ReviewSeed {
 }
 
 const ALIGNMENT_OPTIONS = [
-  { value: 'aligned', label: 'Aligned' },
-  { value: 'partially_aligned', label: 'Partially aligned' },
-  { value: 'not_aligned', label: 'Not aligned' },
+  { value: 'aligned', label: '一致' },
+  { value: 'partially_aligned', label: '部分一致' },
+  { value: 'not_aligned', label: '不一致' },
 ];
 
 const HUMAN_VERDICT_OPTIONS = [
-  { value: 'supported', label: 'Supported' },
-  { value: 'partially_supported', label: 'Partially supported' },
-  { value: 'not_supported', label: 'Not supported' },
+  { value: 'supported', label: '支持' },
+  { value: 'partially_supported', label: '部分支持' },
+  { value: 'not_supported', label: '不支持' },
 ];
 
 const ISSUE_TYPE_OPTIONS = [
-  { value: 'pair_error', label: 'Pair matching error' },
-  { value: 'update_type_error', label: 'Update type error' },
-  { value: 'severity_error', label: 'Severity error' },
-  { value: 'missing_expected_update', label: 'Missing expected update' },
-  { value: 'false_hallucination', label: 'False hallucination call' },
-  { value: 'algo_bias', label: 'Algorithm bias' },
-  { value: 'other', label: 'Other' },
+  { value: 'pair_error', label: '配对错误' },
+  { value: 'update_type_error', label: '更新类型判断错误' },
+  { value: 'severity_error', label: '严重度判断错误' },
+  { value: 'missing_expected_update', label: '漏判应有更新' },
+  { value: 'false_hallucination', label: '误判为幻觉' },
+  { value: 'algo_bias', label: '算法偏差' },
+  { value: 'other', label: '其他' },
 ];
 
 function createEmptyVisibleAnnotation(reviewSeeds: ReviewSeed[]): Q2Task2VisibleModeAnnotation {
@@ -229,7 +229,7 @@ export function Q2Task2Form({
     }
 
     if (!isBoundedInteger(blindAnnotation.humanScore) || !blindAnnotation.humanRationale.trim()) {
-      setValidationError('Human score must be an integer between 0 and 100, and rationale is required.');
+      setValidationError('人工分数必须是 0 到 100 之间的整数，并且必须填写理由。');
       return;
     }
 
@@ -270,9 +270,9 @@ export function Q2Task2Form({
       <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-slate-900">Annotation panel</CardTitle>
+            <CardTitle className="text-slate-900">标注面板</CardTitle>
             <CardDescription className="text-slate-600">
-              Q2 Task 2 judge alignment review for memory update evaluation.
+              Q2 任务2记忆更新评审对齐审核表单。
             </CardDescription>
           </div>
           <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
@@ -284,20 +284,20 @@ export function Q2Task2Form({
         <div className={annotationFormContextPanelClass}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">Evaluation mode</p>
+              <p className="text-sm font-semibold text-slate-900">评估模式</p>
               <p className="text-xs leading-5 text-slate-500">
                 Switch between visible judge alignment and blind human scoring.
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Label className="text-sm text-slate-600">Judge-visible</Label>
+              <Label className="text-sm text-slate-600">评审可见</Label>
               <Switch
                 checked={mode === 'blind_human_scoring'}
                 onCheckedChange={(checked) =>
                   onModeChange(checked ? 'blind_human_scoring' : 'judge_visible')
                 }
               />
-              <Label className="text-sm text-slate-600">Blind scoring</Label>
+              <Label className="text-sm text-slate-600">盲评打分</Label>
             </div>
           </div>
         </div>
@@ -317,7 +317,7 @@ export function Q2Task2Form({
             />
 
             <CheckboxField
-              label="Issue types"
+              label="问题类型"
               values={visibleAnnotation.issueTypes}
               options={ISSUE_TYPE_OPTIONS}
               onChange={(issueTypes) =>
@@ -329,7 +329,7 @@ export function Q2Task2Form({
             />
 
             <TextAreaField
-              label="Evidence note"
+              label="证据说明"
               value={visibleAnnotation.evidenceNote ?? ''}
               onChange={(evidenceNote) =>
                 updateVisibleAnnotation({
@@ -341,7 +341,7 @@ export function Q2Task2Form({
             />
 
             <TextAreaField
-              label="Suggested correction"
+              label="修正建议"
               value={visibleAnnotation.revisionSuggestion ?? ''}
               onChange={(revisionSuggestion) =>
                 updateVisibleAnnotation({
@@ -353,7 +353,7 @@ export function Q2Task2Form({
             />
 
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Review items</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">审核项</p>
               <div className="space-y-3">
                 {reviewSeeds.map((seed) => {
                   const annotation =
@@ -403,7 +403,7 @@ export function Q2Task2Form({
                           placeholder="Explain your review of this item."
                         />
                         <TextAreaField
-                          label="Suggested correction"
+                          label="修正建议"
                           value={annotation.suggestedCorrection}
                           onChange={(suggestedCorrection) =>
                             handleReviewItemChange(seed.reviewKind, seed.reviewId, { suggestedCorrection })
@@ -420,7 +420,7 @@ export function Q2Task2Form({
         ) : (
           <>
             <NumberField
-              label="Human score"
+              label="人工分数"
               value={blindAnnotation.humanScore}
               onChange={(humanScore) =>
                 setRecord((current) => ({
@@ -441,7 +441,7 @@ export function Q2Task2Form({
             />
 
             <TextAreaField
-              label="Human rationale"
+              label="人工理由"
               value={blindAnnotation.humanRationale}
               onChange={(humanRationale) =>
                 setRecord((current) => ({
@@ -471,7 +471,7 @@ export function Q2Task2Form({
 
           <div className="flex justify-end">
             <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
-              Save annotation
+              保存标注
             </Button>
           </div>
         </div>

@@ -47,11 +47,12 @@ export interface ManualCheckDatasetEntry {
 }
 
 export interface ManualCheckDataset {
-  sourceType: 'manual_check_data_folder' | 'merged_manual_check_bundle';
+  sourceType: 'manual_check_data_folder' | 'session_packet_folder' | 'merged_manual_check_bundle';
   rootName: string;
   datasetFingerprint: string;
   uploadedFileIndex?: UploadedFileIndex;
   bundledItemsByRelativePath?: Map<string, Record<string, unknown>>;
+  sessionPacketBaseDir?: string;
   runSummary?: ManualCheckRunSummary;
   entries: ManualCheckDatasetEntry[];
   warnings: string[];
@@ -98,6 +99,7 @@ export interface Q1Task1Annotation extends CommonAnnotationFields {
   hasDialogueEvidence: TernaryAnswer | '';
   overInference: BinaryAnswer | '';
   faithfulToOriginalMeaning: TernaryAnswer | '';
+  editableGoldMemories?: Array<Record<string, unknown>>;
   issueTypes: string[];
 }
 
@@ -113,16 +115,14 @@ export interface Q1Task2Annotation extends CommonAnnotationFields {
     role: string;
     text: string;
   }>;
-  editableUpdatedMemories: Array<{
-    memoryId: string;
-    value: string;
-  }>;
+  editableUpdatedMemories: Array<Record<string, unknown>>;
   issueTypes: string[];
 }
 
 export interface Q1Task3Annotation extends CommonAnnotationFields {
   formType: 'Q1:task3';
   queryText: string;
+  editableSelectedMemory?: Record<string, unknown> | null;
   relevanceLevel: RelevanceLevel | '';
   hardWithoutTargetMemory: TernaryAnswer | '';
   answerableByCommonSense: BinaryAnswer | '';
@@ -132,6 +132,9 @@ export interface Q1Task3Annotation extends CommonAnnotationFields {
 export interface Q1Task4SubAnnotation {
   queryId: string;
   queryText: string;
+  ability?: AbilityKey;
+  task4RecordIndex?: number;
+  editableSelectedMemory?: Record<string, unknown> | null;
   overallVerdict: OverallVerdict | '';
   testsTargetAbility: TernaryAnswer | '';
   memoryDependency: DependencyLevel | '';
@@ -144,6 +147,7 @@ export interface Q1Task4SubAnnotation {
 export interface Q1Task4Annotation extends CommonAnnotationFields {
   formType: 'Q1:task4';
   ability?: AbilityKey;
+  editableSelectedMemory?: Record<string, unknown> | null;
   subAnnotations: Q1Task4SubAnnotation[];
 }
 

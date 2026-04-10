@@ -66,9 +66,9 @@ export function ConversationBlock({
                         : 'border-emerald-300 bg-emerald-100 text-emerald-700'
                     }
                   >
-                    {isUser ? 'User' : 'Assistant'}
+                    {isUser ? '用户' : '助手'}
                   </Badge>
-                  <span className="text-xs text-slate-400">Turn {index + 1}</span>
+                  <span className="text-xs text-slate-400">第 {index + 1} 轮</span>
                 </div>
                 <TranslatedText text={turn.text} translationEnabled={translationEnabled} />
               </div>

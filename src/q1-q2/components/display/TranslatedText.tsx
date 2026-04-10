@@ -56,13 +56,13 @@ export function TranslatedText({
         isLoading ? (
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-            Translating...
+            正在翻译...
           </div>
         ) : translatedText && translatedText !== text ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
             <div className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-500">
               <Languages className="h-3.5 w-3.5" />
-              Chinese translation
+              中文翻译
             </div>
             <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">
               {translatedText}

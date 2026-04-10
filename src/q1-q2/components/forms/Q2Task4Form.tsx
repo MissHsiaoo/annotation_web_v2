@@ -43,17 +43,17 @@ interface QuerySeed {
 }
 
 const ALIGNMENT_OPTIONS = [
-  { value: 'aligned', label: 'Aligned' },
-  { value: 'partially_aligned', label: 'Partially aligned' },
-  { value: 'not_aligned', label: 'Not aligned' },
+  { value: 'aligned', label: '一致' },
+  { value: 'partially_aligned', label: '部分一致' },
+  { value: 'not_aligned', label: '不一致' },
 ];
 
 const ISSUE_TYPE_OPTIONS = [
-  { value: 'score_too_high', label: 'Score too high' },
-  { value: 'score_too_low', label: 'Score too low' },
-  { value: 'wrong_dimension_focus', label: 'Wrong dimension focus' },
-  { value: 'reasoning_mismatch', label: 'Reasoning mismatch' },
-  { value: 'other', label: 'Other' },
+  { value: 'score_too_high', label: '分数过高' },
+  { value: 'score_too_low', label: '分数过低' },
+  { value: 'wrong_dimension_focus', label: '关注维度错误' },
+  { value: 'reasoning_mismatch', label: '推理不匹配' },
+  { value: 'other', label: '其他' },
 ];
 
 const ABILITY5_DIMENSIONS = ['resonation', 'expression', 'reception'] as const;
@@ -343,9 +343,9 @@ export function Q2Task4Form({
       <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-slate-900">Annotation panel</CardTitle>
+            <CardTitle className="text-slate-900">标注面板</CardTitle>
             <CardDescription className="text-slate-600">
-              Q2 Task 4 personalized utilization review with per-query sub-annotations.
+              Q2 任务4个性化利用审核表单，支持按查询分别标注。
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -362,20 +362,20 @@ export function Q2Task4Form({
         <div className={annotationFormContextPanelClass}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">Evaluation mode</p>
+              <p className="text-sm font-semibold text-slate-900">评估模式</p>
               <p className="text-xs leading-5 text-slate-500">
                 Switch between visible judge alignment and blind human scoring.
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Label className="text-sm text-slate-600">Judge-visible</Label>
+              <Label className="text-sm text-slate-600">评审可见</Label>
               <Switch
                 checked={mode === 'blind_human_scoring'}
                 onCheckedChange={(checked) =>
                   onModeChange(checked ? 'blind_human_scoring' : 'judge_visible')
                 }
               />
-              <Label className="text-sm text-slate-600">Blind scoring</Label>
+              <Label className="text-sm text-slate-600">盲评打分</Label>
             </div>
           </div>
         </div>
@@ -413,7 +413,7 @@ export function Q2Task4Form({
                       Model response
                     </p>
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">
-                      {item.responseText || 'No model response found.'}
+                      {item.responseText || '未找到模型回答。'}
                     </p>
                   </div>
                   <p className="text-xs text-slate-500">
@@ -446,21 +446,21 @@ export function Q2Task4Form({
                     />
 
                     <CheckboxField
-                      label="Issue types"
+                      label="问题类型"
                       values={visible.issueTypes}
                       options={ISSUE_TYPE_OPTIONS}
                       onChange={(issueTypes) => updateVisibleMode(item.queryId, { issueTypes })}
                     />
 
                     <TextAreaField
-                      label="Evidence note"
+                      label="证据说明"
                       value={visible.evidenceNote ?? ''}
                       onChange={(evidenceNote) => updateVisibleMode(item.queryId, { evidenceNote })}
                       placeholder="Explain why the visible judge aligns or fails to align with human review."
                     />
 
                     <TextAreaField
-                      label="Suggested correction"
+                      label="修正建议"
                       value={visible.revisionSuggestion ?? ''}
                       onChange={(revisionSuggestion) =>
                         updateVisibleMode(item.queryId, { revisionSuggestion })
@@ -471,7 +471,7 @@ export function Q2Task4Form({
                 ) : (
                   <>
                     <NumberField
-                      label="Human score"
+                      label="人工分数"
                       value={blind.humanScore}
                       onChange={(humanScore) => updateBlindMode(item.queryId, { humanScore })}
                     />
@@ -497,7 +497,7 @@ export function Q2Task4Form({
                     ) : null}
 
                     <TextAreaField
-                      label="Human rationale"
+                      label="人工理由"
                       value={blind.humanRationale}
                       onChange={(humanRationale) =>
                         updateBlindMode(item.queryId, { humanRationale })
@@ -525,7 +525,7 @@ export function Q2Task4Form({
 
           <div className="flex justify-end">
             <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
-              Save annotation
+              保存标注
             </Button>
           </div>
         </div>

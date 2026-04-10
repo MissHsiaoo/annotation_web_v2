@@ -30,34 +30,34 @@ interface QuerySeed {
 }
 
 const VERDICT_OPTIONS = [
-  { value: 'reasonable', label: 'Reasonable' },
-  { value: 'partially_reasonable', label: 'Partially reasonable' },
-  { value: 'unreasonable', label: 'Unreasonable' },
+  { value: 'reasonable', label: '合理' },
+  { value: 'partially_reasonable', label: '部分合理' },
+  { value: 'unreasonable', label: '不合理' },
 ];
 
 const TERNARY_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'no', label: 'No' },
+  { value: 'yes', label: '是' },
+  { value: 'partial', label: '部分' },
+  { value: 'no', label: '否' },
 ];
 
 const DEPENDENCY_OPTIONS = [
-  { value: 'strong', label: 'Strong' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'weak', label: 'Weak' },
+  { value: 'strong', label: '强' },
+  { value: 'medium', label: '中' },
+  { value: 'weak', label: '弱' },
 ];
 
 const PURITY_OPTIONS = [
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'high', label: '高' },
+  { value: 'medium', label: '中' },
+  { value: 'low', label: '低' },
 ];
 
 const ISSUE_TYPE_OPTIONS = [
-  { value: 'ability_mismatch', label: 'Ability mismatch' },
-  { value: 'memory_not_required', label: 'Memory not required' },
-  { value: 'leakage', label: 'Leakage' },
-  { value: 'other', label: 'Other' },
+  { value: 'ability_mismatch', label: '能力不匹配' },
+  { value: 'memory_not_required', label: '记忆非必需' },
+  { value: 'leakage', label: '信息泄漏' },
+  { value: 'other', label: '其他' },
 ];
 
 function createEmptySubAnnotation(seed: QuerySeed): Q1Task4SubAnnotation {
@@ -178,9 +178,9 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
       <CardHeader className={annotationFormHeaderClass}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-slate-900">Annotation panel</CardTitle>
+            <CardTitle className="text-slate-900">标注面板</CardTitle>
             <CardDescription className="text-slate-600">
-              Q1 Task 4 ability-fit review form with per-query sub-annotations.
+              Q1 任务4能力匹配审核表单，支持按查询分别标注。
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -225,7 +225,7 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
                 </div>
                 <div className="mt-3 space-y-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Original</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">原始查询</p>
                     <div className="mt-2 rounded-xl border border-slate-200 bg-white/80 p-3 text-sm leading-6 text-slate-800">
                       {querySeeds.find((seed) => seed.queryId === item.queryId)?.queryText ?? item.queryText}
                     </div>
@@ -234,7 +234,7 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
                   item.queryText !==
                     (querySeeds.find((seed) => seed.queryId === item.queryId)?.queryText ?? item.queryText) ? (
                     <TextAreaField
-                      label="Edited query"
+                      label="修改后的查询"
                       value={item.queryText}
                       onChange={(queryText) => updateSubAnnotation(item.queryId, { queryText })}
                       placeholder="Revise the ability query if needed."
@@ -244,7 +244,7 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
               </div>
 
               <RadioField
-                label="Overall verdict"
+                label="总体结论"
                 value={item.overallVerdict}
                 options={VERDICT_OPTIONS}
                 onChange={(value) =>
@@ -288,14 +288,14 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
               />
 
               <CheckboxField
-                label="Issue types"
+                label="问题类型"
                 values={item.issueTypes}
                 options={ISSUE_TYPE_OPTIONS}
                 onChange={(issueTypes) => updateSubAnnotation(item.queryId, { issueTypes })}
               />
 
               <TextAreaField
-                label="Evidence note"
+                label="证据说明"
                 value={item.evidenceNote}
                 onChange={(evidenceNote) => updateSubAnnotation(item.queryId, { evidenceNote })}
                 placeholder="Explain why the query does or does not fit the intended ability."
@@ -327,7 +327,7 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
 
           <div className="flex justify-end">
             <Button type="button" onClick={handleSave} className="rounded-xl px-6 shadow-sm">
-              Save annotation
+              保存标注
             </Button>
           </div>
         </div>
