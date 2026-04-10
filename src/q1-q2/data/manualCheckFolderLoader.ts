@@ -235,6 +235,21 @@ async function findSessionPacketDiscovery(index: UploadedFileIndex): Promise<Ses
     }
   }
 
+  // Parent directory uploaded (e.g. task1_3_annotation_data containing chunks/)
+  const nestedChunkPacketFiles = index.allRelativePaths
+    .filter((relativePath) => /^chunks\/chunk_[^/]+\/sess_[^/]+\.json$/.test(relativePath))
+    .sort();
+
+  if (nestedChunkPacketFiles.length > 0) {
+    return {
+      manifestPath: pathExists(index, 'chunks/manifest.json') ? 'chunks/manifest.json' : 'chunks',
+      baseDir: 'chunks',
+      packetFiles: nestedChunkPacketFiles,
+      isChunked: true,
+    };
+  }
+
+  // chunks/ folder uploaded directly (paths: chunk_0001/sess_*.json)
   const directChunkPacketFiles = index.allRelativePaths
     .filter((relativePath) => /^chunk_[^/]+\/sess_[^/]+\.json$/.test(relativePath))
     .sort();

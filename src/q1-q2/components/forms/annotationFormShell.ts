@@ -4,24 +4,24 @@ type AnnotationStatus = 'draft' | 'saved';
 
 /** Shared layout tokens for task annotation forms (right pane). Keeps cards, headers, and footers visually aligned. */
 export const annotationFormCardClass =
-  'min-w-0 overflow-hidden border-slate-200/90 bg-white/95 shadow-md ring-1 ring-slate-200/35';
+  'min-w-0 overflow-hidden border border-slate-200 bg-white shadow-sm';
 
 export const annotationFormHeaderClass =
-  'border-b border-slate-100/80 bg-gradient-to-r from-white via-white to-indigo-50/60 px-5 py-5 sm:px-6';
+  'border-b border-slate-100 bg-slate-50 px-5 py-4 sm:px-6';
 
-export const annotationFormContentClass = 'space-y-6 px-5 pb-0 pt-6 sm:px-6';
+export const annotationFormContentClass = 'space-y-5 px-5 pb-0 pt-5 sm:px-6';
 
 export const annotationFormFooterClass =
-  'mt-4 space-y-4 rounded-2xl border border-slate-200/70 bg-gradient-to-br from-slate-50/90 to-white px-4 py-5 shadow-inner ring-1 ring-slate-200/25 sm:px-5';
+  'mt-4 space-y-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 sm:px-5';
 
 export const annotationFormContextPanelClass =
-  'rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-5 shadow-sm ring-1 ring-slate-200/25';
+  'rounded-lg border border-slate-200 bg-slate-50 p-4';
 
 export const annotationFormArtifactPanelClass =
-  'rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm ring-1 ring-slate-200/20';
+  'rounded-lg border border-slate-200 bg-white p-4';
 
 export const annotationValidationErrorClass =
-  'rounded-xl border border-red-200/90 bg-red-50/95 px-4 py-3 text-sm text-red-800 shadow-sm';
+  'rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700';
 
 export function formatAnnotationSaveSummary(status: AnnotationStatus, updatedAt: string): string {
   if (!updatedAt) {
