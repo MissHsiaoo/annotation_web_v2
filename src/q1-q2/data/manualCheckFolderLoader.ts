@@ -367,24 +367,11 @@ async function loadSessionPacketDataset(index: UploadedFileIndex, discovery: Ses
     });
 
     if (taskAvailability.task4) {
-      const packet = await readJsonFromIndex<Record<string, unknown>>(index, relativePath);
-      const task4Records = Array.isArray(packet.task4) ? packet.task4 : [];
-
-      if (task4Records.length > 0) {
-        task4Rows.push({
-          canonical_id: `${sessionId}:task4`,
-          session_id: sessionId,
-          packet_relative_path: relativePath,
-          task4_record_count: task4Records.length,
-        });
-      } else {
-        task4Rows.push({
-          canonical_id: `${sessionId}:task4`,
-          session_id: sessionId,
-          packet_relative_path: relativePath,
-          task4_record_count: 0,
-        });
-      }
+      task4Rows.push({
+        canonical_id: `${sessionId}:task4`,
+        session_id: sessionId,
+        packet_relative_path: relativePath,
+      });
     }
   }
 
