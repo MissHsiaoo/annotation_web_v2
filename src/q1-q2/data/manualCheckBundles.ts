@@ -137,8 +137,12 @@ export function applyDirectAnnotationEdits(
       });
     }
 
-    if (annotation.editableSelectedMemory) {
-      const editedMemory = annotation.editableSelectedMemory;
+    const topLevelMemory =
+      annotation.editableSelectedMemory ??
+      annotation.subAnnotations.find((item) => item.editableSelectedMemory)?.editableSelectedMemory ??
+      null;
+    if (topLevelMemory) {
+      const editedMemory = topLevelMemory;
       original.selected_memory = editedMemory;
       original.task4_selected_memory = editedMemory;
 

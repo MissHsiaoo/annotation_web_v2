@@ -938,10 +938,7 @@ export function TaskSampleDisplay({
     }
 
     if (entry.track === 'Q1' && entry.task === 'task3') {
-      const task3CandidateMemories =
-        linkedGoldMemories.length > 0
-          ? linkedGoldMemories.map(cloneMemoryRecord)
-          : getMemoryRecords(original.candidate_memories);
+      const task3CandidateMemories = getMemoryRecords(original.candidate_memories);
       const task3SelectedMemorySeed = syncSelectedMemoryWithGold(
         getSelectedMemoryRecord(original.selected_memory),
         linkedGoldMemories,
@@ -1039,9 +1036,14 @@ export function TaskSampleDisplay({
         linkedGoldMemories.length > 0
           ? linkedGoldMemories.map(cloneMemoryRecord)
           : getMemoryRecords(original.extracted_memory);
-      const selectedMemoryItems = task4Annotation.editableSelectedMemory
-        ? [task4Annotation.editableSelectedMemory]
-        : [];
+      const clampedTask4QueryIndex =
+        task4Annotation.subAnnotations.length > 0
+          ? Math.min(activeTask4QueryIndex, task4Annotation.subAnnotations.length - 1)
+          : 0;
+      const activeTask4SubAnnotation = task4Annotation.subAnnotations[clampedTask4QueryIndex] ?? null;
+      // Per-query selected memory — driven by whichever query is active in col3.
+      const activeQueryMemory = activeTask4SubAnnotation?.editableSelectedMemory ?? null;
+      const selectedMemoryItems = activeQueryMemory ? [activeQueryMemory] : [];
       const selectedMemoryIds = new Set(
         task4Annotation.subAnnotations
           .map((item) => asString(item.editableSelectedMemory?.memory_id))
@@ -1050,11 +1052,6 @@ export function TaskSampleDisplay({
       const otherCandidateMemories = candidateMemories.filter(
         (memory) => !selectedMemoryIds.has(String(memory.memory_id ?? '')),
       );
-      const clampedTask4QueryIndex =
-        task4Annotation.subAnnotations.length > 0
-          ? Math.min(activeTask4QueryIndex, task4Annotation.subAnnotations.length - 1)
-          : 0;
-      const activeTask4SubAnnotation = task4Annotation.subAnnotations[clampedTask4QueryIndex] ?? null;
       const updateTask4SubAnnotation = (
         queryId: string,
         patch: Partial<Q1Task4SubAnnotation>,
@@ -1064,17 +1061,6 @@ export function TaskSampleDisplay({
             subAnnotations: task4Annotation.subAnnotations.map((item) =>
               item.queryId === queryId ? { ...item, ...patch } : item,
             ),
-          }),
-        );
-      };
-      const updateTask4SelectedMemory = (selectedMemory: EditableMemoryRecord | null) => {
-        updateIntegratedAnnotation(
-          markDraft(task4Annotation, {
-            editableSelectedMemory: selectedMemory,
-            subAnnotations: task4Annotation.subAnnotations.map((item) => ({
-              ...item,
-              editableSelectedMemory: selectedMemory ? cloneMemoryRecord(selectedMemory) : null,
-            })),
           }),
         );
       };
@@ -1088,9 +1074,11 @@ export function TaskSampleDisplay({
           return `Query ${emptyQuery.queryId} cannot be empty.`;
         }
 
-        const memoryValidation = validateTask4SelectedMemoryRecord(task4Annotation.editableSelectedMemory);
-        if (memoryValidation) {
-          return memoryValidation;
+        for (const item of task4Annotation.subAnnotations) {
+          const memErr = validateTask4SelectedMemoryRecord(item.editableSelectedMemory ?? null);
+          if (memErr) {
+            return `Query ${item.queryId}: ${memErr}`;
+          }
         }
 
         const incompleteVerdict = task4Annotation.subAnnotations.find((item) => !item.overallVerdict);
@@ -1129,27 +1117,53 @@ export function TaskSampleDisplay({
             title="Selected Memory"
             helper="Check whether the selected memory is the right support for the current ability queries."
           >
-            {selectedMemoryItems.length > 0 ? (
-              <StructuredMemoryEditor
-                title="Selected Memory Editor"
-                description="This memory should support the task4 ability queries."
-                memories={selectedMemoryItems}
-                displayMode="carousel"
-                translationEnabled={translationEnabled}
-                onChange={(nextMemories) => updateTask4SelectedMemory(nextMemories[0] ?? null)}
-                addButtonLabel="Restore Selected Memory"
-              />
-            ) : (
-              <StructuredMemoryEditor
-                title="Selected Memory Editor"
-                description="This sample does not currently have a selected memory. Add it back here if needed."
-                memories={[]}
-                displayMode="carousel"
-                translationEnabled={translationEnabled}
-                onChange={(nextMemories) => updateTask4SelectedMemory(nextMemories[0] ?? null)}
-                addButtonLabel="Restore Selected Memory"
-              />
-            )}
+            {activeTask4SubAnnotation ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-medium text-slate-500">
+                  Selected memory for query
+                </p>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTask4QueryIndex((i) => Math.max(i - 1, 0))}
+                    disabled={clampedTask4QueryIndex === 0}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ‹
+                  </button>
+                  <span className="min-w-[36px] text-center text-xs tabular-nums text-slate-500">
+                    {clampedTask4QueryIndex + 1}/{task4Annotation.subAnnotations.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTask4QueryIndex((i) => Math.min(i + 1, task4Annotation.subAnnotations.length - 1))}
+                    disabled={clampedTask4QueryIndex >= task4Annotation.subAnnotations.length - 1}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <StructuredMemoryEditor
+              title="Selected Memory Editor"
+              description={
+                activeTask4SubAnnotation
+                  ? `Memory for query ${clampedTask4QueryIndex + 1} / ${task4Annotation.subAnnotations.length}. Navigate queries to edit each one's memory.`
+                  : 'No queries available. Add a selected memory if needed.'
+              }
+              memories={selectedMemoryItems}
+              displayMode="carousel"
+              translationEnabled={translationEnabled}
+              onChange={(nextMemories) => {
+                if (activeTask4SubAnnotation) {
+                  updateTask4SubAnnotation(activeTask4SubAnnotation.queryId, {
+                    editableSelectedMemory: nextMemories[0] ?? null,
+                  });
+                }
+              }}
+              addButtonLabel="Restore Selected Memory"
+            />
             <MemoryListBlock
               title="Other Candidate Memories"
               description="Review other candidate memories without leaving this column."
