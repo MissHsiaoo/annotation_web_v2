@@ -7,12 +7,14 @@ interface TranslatedTextProps {
   text: string;
   translationEnabled?: boolean;
   className?: string;
+  hideOriginal?: boolean;
 }
 
 export function TranslatedText({
   text,
   translationEnabled = false,
   className = 'whitespace-pre-wrap break-words text-sm leading-6 text-slate-700',
+  hideOriginal = false,
 }: TranslatedTextProps) {
   const [translatedText, setTranslatedText] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +24,7 @@ export function TranslatedText({
 
     if (!translationEnabled || !text.trim()) {
       setIsLoading(false);
+      setTranslatedText('');
       return;
     }
 
@@ -50,7 +53,7 @@ export function TranslatedText({
 
   return (
     <div className="space-y-2">
-      <p className={className}>{text}</p>
+      {!hideOriginal ? <p className={`${className} select-text cursor-text`}>{text}</p> : null}
 
       {translationEnabled ? (
         isLoading ? (
@@ -64,7 +67,7 @@ export function TranslatedText({
               <Languages className="h-3.5 w-3.5" />
               中文翻译
             </div>
-            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">
+            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-600 select-text cursor-text">
               {translatedText}
             </p>
           </div>

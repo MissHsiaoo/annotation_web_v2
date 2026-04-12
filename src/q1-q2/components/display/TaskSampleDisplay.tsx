@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+﻿import { useEffect, useState, type ReactNode } from 'react';
 import { Languages } from 'lucide-react';
 
 import { Button } from '../../../components/ui/button';
@@ -39,6 +39,7 @@ interface TaskSampleDisplayProps {
   loadedItem: LoadedManualCheckItem;
   evaluationMode: EvaluationMode;
   currentAnnotation?: AnySupportedAnnotation;
+  linkedTask1Annotation?: Q1Task1Annotation;
   onDraftChange?: (annotation: AnySupportedAnnotation) => void;
   onSave?: (annotation: AnySupportedAnnotation) => void;
 }
@@ -127,7 +128,7 @@ function getResponseItems(modelOutput: Dictionary | null): Array<{ label?: strin
       }
 
       return {
-        label: asString(record.query_id) ?? `回答 ${index + 1}`,
+        label: asString(record.query_id) ?? `鍥炵瓟 ${index + 1}`,
         text,
       };
     })
@@ -161,26 +162,26 @@ function buildJudgeReviewTextItems(
 
       if (reviewKind === 'pair_reviews') {
         return {
-          label: `${asString(record.gold_id) ?? '金标准'} -> ${asString(record.pred_id) ?? '预测'} | ${
-            record.ok === true ? '一致' : '不一致'
-          } | 严重度 ${typeof record.severity === 'number' ? record.severity : '?'}`,
+          label: `${asString(record.gold_id) ?? 'gold'} -> ${asString(record.pred_id) ?? 'pred'} | ${
+            record.ok === true ? 'match' : 'mismatch'
+          } | severity ${typeof record.severity === 'number' ? record.severity : '?'}`,
           text: rationale,
         };
       }
 
       if (reviewKind === 'missing_reviews') {
         return {
-          label: `${asString(record.id) ?? `缺失-${index + 1}`} | 应抽取 ${
-            record.should_have_extracted === true ? '是' : '否'
-          } | 严重度 ${typeof record.severity === 'number' ? record.severity : '?'}`,
+          label: `${asString(record.id) ?? `missing-${index + 1}`} | should extract ${
+            record.should_have_extracted === true ? 'yes' : 'no'
+          } | severity ${typeof record.severity === 'number' ? record.severity : '?'}`,
           text: rationale,
         };
       }
 
       return {
-        label: `${asString(record.id) ?? `多余-${index + 1}`} | 幻觉 ${
-          record.hallucinated === true ? '是' : '否'
-        } | 严重度 ${typeof record.severity === 'number' ? record.severity : '?'}`,
+        label: `${asString(record.id) ?? `extra-${index + 1}`} | hallucinated ${
+          record.hallucinated === true ? 'yes' : 'no'
+        } | severity ${typeof record.severity === 'number' ? record.severity : '?'}`,
         text: rationale,
       };
     })
@@ -197,22 +198,22 @@ function getTask3ModelTextItems(modelOutput: Dictionary | null): Array<{ label?:
 
   const answerText = formatPossiblyStructuredString(parsedResponse?.answer);
   if (answerText) {
-    items.push({ label: '回答', text: answerText });
+    items.push({ label: '鍥炵瓟', text: answerText });
   }
 
   const reasonText = formatPossiblyStructuredString(parsedResponse?.reason);
   if (reasonText) {
-    items.push({ label: '原因', text: reasonText });
+    items.push({ label: '鍘熷洜', text: reasonText });
   }
 
   const selectedMemoryId = asString(parsedResponse?.selected_memory_id);
   if (selectedMemoryId) {
-    items.push({ label: '选中记忆 ID', text: selectedMemoryId });
+    items.push({ label: '閫変腑璁板繂 ID', text: selectedMemoryId });
   }
 
   const rawOutput = formatPossiblyStructuredString(modelOutput.raw_output);
   if (items.length === 0 && rawOutput) {
-    items.push({ label: '模型原始输出', text: rawOutput });
+    items.push({ label: '妯″瀷鍘熷杈撳嚭', text: rawOutput });
   }
 
   return items;
@@ -267,6 +268,43 @@ function getMemoryRecords(value: unknown): EditableMemoryRecord[] {
 function getSelectedMemoryRecord(value: unknown): EditableMemoryRecord | null {
   const record = asDictionary(value);
   return record ? cloneMemoryRecord(record) : null;
+}
+
+function getLinkedGoldMemories(linkedTask1Annotation?: Q1Task1Annotation): EditableMemoryRecord[] {
+  return (linkedTask1Annotation?.editableGoldMemories ?? [])
+    .filter((item): item is EditableMemoryRecord => Boolean(asDictionary(item)))
+    .map(cloneMemoryRecord);
+}
+
+function syncSelectedMemoryWithGold(
+  selectedMemory: EditableMemoryRecord | null,
+  goldMemories: EditableMemoryRecord[],
+): EditableMemoryRecord | null {
+  if (!selectedMemory) {
+    return null;
+  }
+
+  const selectedMemoryId = asString(selectedMemory.memory_id);
+  const matchedById = selectedMemoryId
+    ? goldMemories.find((memory) => asString(memory.memory_id) === selectedMemoryId)
+    : null;
+
+  if (matchedById) {
+    return cloneMemoryRecord(matchedById);
+  }
+
+  const selectedLabel = asString(selectedMemory.label);
+  const selectedValue = asString(selectedMemory.value);
+  const matchedByContent =
+    selectedLabel || selectedValue
+      ? goldMemories.find(
+          (memory) =>
+            asString(memory.label) === selectedLabel &&
+            asString(memory.value) === selectedValue,
+        )
+      : null;
+
+  return matchedByContent ? cloneMemoryRecord(matchedByContent) : cloneMemoryRecord(selectedMemory);
 }
 
 function getNewDialogueSeeds(value: unknown): Array<{ turnId: string; role: string; text: string }> {
@@ -359,36 +397,36 @@ function createTask3Annotation(
 }
 
 const TASK4_VERDICT_OPTIONS = [
-  { value: 'reasonable', label: '合理' },
-  { value: 'partially_reasonable', label: '部分合理' },
-  { value: 'unreasonable', label: '不合理' },
+  { value: 'reasonable', label: 'Reasonable' },
+  { value: 'partially_reasonable', label: 'Partially Reasonable' },
+  { value: 'unreasonable', label: 'Unreasonable' },
 ];
 
 const TASK4_TERNARY_OPTIONS = [
-  { value: 'yes', label: '是' },
-  { value: 'partial', label: '部分' },
-  { value: 'no', label: '否' },
+  { value: 'yes', label: 'Yes' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'no', label: 'No' },
 ];
 
 const TASK4_DEPENDENCY_OPTIONS = [
-  { value: 'strong', label: '强' },
-  { value: 'medium', label: '中' },
-  { value: 'weak', label: '弱' },
+  { value: 'strong', label: 'Strong' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'weak', label: 'Weak' },
 ];
 
 const TASK4_PURITY_OPTIONS = [
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
 ];
 
 const TASK4_ISSUE_TYPE_OPTIONS = [
-  { value: 'ability_mismatch', label: '能力不匹配' },
-  { value: 'memory_not_required', label: '记忆非必需' },
-  { value: 'selected_memory_wrong', label: '选中记忆不合适' },
-  { value: 'query_unclear', label: '查询不清楚' },
-  { value: 'leakage', label: '信息泄漏' },
-  { value: 'other', label: '其他' },
+  { value: 'ability_mismatch', label: 'Ability Mismatch' },
+  { value: 'memory_not_required', label: 'Memory Not Required' },
+  { value: 'selected_memory_wrong', label: 'Selected Memory Wrong' },
+  { value: 'query_unclear', label: 'Query Unclear' },
+  { value: 'leakage', label: 'Leakage' },
+  { value: 'other', label: 'Other' },
 ];
 
 interface Task4QuerySeed {
@@ -503,15 +541,15 @@ function createTask4Annotation(
 
 function validateTask4SelectedMemoryRecord(record: EditableMemoryRecord | null): string | null {
   if (!record) {
-    return 'Selected Memory 不能为空。';
+    return 'Selected Memory cannot be empty.';
   }
 
   if (!String(record.value ?? '').trim()) {
-    return 'Selected Memory 的 value 不能为空。';
+    return 'Selected Memory value cannot be empty.';
   }
 
-  if (typeof record.evidence === 'string') {
-    return 'Selected Memory 的 evidence 必须是 JSON object/null，不能是普通字符串。';
+  if (typeof record.evidence !== 'undefined' && record.evidence !== null && !asDictionary(record.evidence)) {
+    return 'Selected Memory evidence must be a JSON object or null, not a plain string.';
   }
 
   return null;
@@ -630,18 +668,23 @@ export function TaskSampleDisplay({
   loadedItem,
   evaluationMode,
   currentAnnotation,
+  linkedTask1Annotation,
   onDraftChange,
   onSave,
 }: TaskSampleDisplayProps) {
-  const [translationEnabled, setTranslationEnabled] = useState(false);
+  const [translationEnabled, setTranslationEnabled] = useState(true);
   const [integratedAnnotation, setIntegratedAnnotation] = useState<AnySupportedAnnotation | undefined>(
     currentAnnotation,
   );
   const [integratedValidationError, setIntegratedValidationError] = useState('');
+  const [activeTask1ModelIndex, setActiveTask1ModelIndex] = useState(0);
+  const [activeTask4QueryIndex, setActiveTask4QueryIndex] = useState(0);
 
   useEffect(() => {
     setIntegratedAnnotation(currentAnnotation);
     setIntegratedValidationError('');
+    setActiveTask1ModelIndex(0);
+    setActiveTask4QueryIndex(0);
   }, [loadedItem.itemPath, currentAnnotation]);
 
   const { entry, itemData } = loadedItem;
@@ -651,6 +694,7 @@ export function TaskSampleDisplay({
   const judgeOutputValue = itemData.judge_output_raw;
   const showJudgeArtifacts = entry.track !== 'Q2' || evaluationMode === 'judge_visible';
   const activeIntegratedAnnotation = integratedAnnotation ?? currentAnnotation;
+  const linkedGoldMemories = getLinkedGoldMemories(linkedTask1Annotation);
 
   const updateIntegratedAnnotation = (annotation: AnySupportedAnnotation) => {
     setIntegratedAnnotation(annotation);
@@ -674,8 +718,8 @@ export function TaskSampleDisplay({
     if (!original) {
       return (
         <JsonPreviewBlock
-          title="完整样本 JSON"
-          description="未找到规范化后的原始数据。"
+          title="Full Sample JSON"
+          description="Normalized original data was not found for this sample."
           value={itemData}
         />
       );
@@ -686,21 +730,34 @@ export function TaskSampleDisplay({
       const task1ModelGroups = getTask1ModelMemoryGroups(probe?.llm_outputs);
       const originalGoldMemories = getMemoryRecords(probe?.ground_truth_memories);
       const task1Annotation = createTask1Annotation(originalGoldMemories, activeIntegratedAnnotation);
+      const clampedTask1ModelIndex =
+        task1ModelGroups.length > 0 ? Math.min(activeTask1ModelIndex, task1ModelGroups.length - 1) : 0;
+      const activeTask1ModelGroup = task1ModelGroups[clampedTask1ModelIndex] ?? null;
+
       return (
         <ThreeColumnTaskLayout>
-          <TaskColumn step="1" title="原对话" helper="先读完整对话，判断哪些内容应该形成长期记忆。">
+          <TaskColumn
+            step="1"
+            title="Original Conversation"
+            helper="Read the full conversation first, then decide which facts should become long-term memories."
+          >
             <ConversationBlock
-              title="对话"
-              description="用于构建基准记忆的原始对话。"
+              title="Conversation"
+              description="Source dialogue used to build the golden memory set."
               turns={normalizeConversation(probe?.dialogue)}
               translationEnabled={translationEnabled}
             />
           </TaskColumn>
-          <TaskColumn step="2" title="编辑 Golden Memory" helper="在这里直接改最终要保存的 memory 字段，不需要去下面找表单。">
+          <TaskColumn
+            step="2"
+            title="Golden Memories"
+            helper="Edit the final golden memories directly here."
+          >
             <StructuredMemoryEditor
-              title="Golden Memory 字段编辑"
-              description="保留原始 taxonomy；每条 memory 的每个字段都可以直接修改。"
+              title="Golden Memory Editor"
+              description="Keep the original taxonomy while updating each memory field directly."
               memories={task1Annotation.editableGoldMemories ?? []}
+              displayMode="carousel"
               translationEnabled={translationEnabled}
               onChange={(editableGoldMemories) =>
                 updateIntegratedAnnotation(markDraft(task1Annotation, { editableGoldMemories }))
@@ -708,7 +765,7 @@ export function TaskSampleDisplay({
             />
             <IntegratedSaveBar
               error={integratedValidationError}
-              buttonLabel="保存 Golden Memory"
+              buttonLabel="Save Golden Memories"
               onSave={() =>
                 saveIntegratedAnnotation(
                   task1Annotation,
@@ -717,19 +774,61 @@ export function TaskSampleDisplay({
               }
             />
           </TaskColumn>
-          <TaskColumn step="3" title="多模型抽取结果" helper="横向看各模型抽取的 memory，把 golden 中遗漏的重要记忆补上。">
+          <TaskColumn
+            step="3"
+            title="Model Outputs"
+            helper="Review one model at a time and use them only to check whether golden memories missed anything important."
+          >
             {task1ModelGroups.length > 0 ? (
               <div className="space-y-4">
-                {task1ModelGroups.map((group) => (
-                  <MemoryListBlock
-                    key={group.modelName}
-                    title={`多模型候选记忆: ${group.modelName}`}
-                    description="用于补充检查金标准是否遗漏。"
-                    items={group.items}
-                    searchable
-                    translationEnabled={translationEnabled}
-                  />
-                ))}
+                {activeTask1ModelGroup ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                          Model Output
+                        </p>
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {activeTask1ModelGroup.modelName}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActiveTask1ModelIndex((index) => Math.max(index - 1, 0))}
+                          disabled={clampedTask1ModelIndex === 0}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-xs text-slate-500">
+                          {clampedTask1ModelIndex + 1} / {task1ModelGroups.length}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setActiveTask1ModelIndex((index) => Math.min(index + 1, task1ModelGroups.length - 1))
+                          }
+                          disabled={clampedTask1ModelIndex >= task1ModelGroups.length - 1}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                    <MemoryListBlock
+                      key={activeTask1ModelGroup.modelName}
+                      title={`Model Candidate Memories: ${activeTask1ModelGroup.modelName}`}
+                      description="Candidate memories extracted by the current model."
+                      items={activeTask1ModelGroup.items}
+                      displayMode="carousel"
+                      searchable
+                      translationEnabled={translationEnabled}
+                    />
+                  </>
+                ) : null}
               </div>
             ) : null}
           </TaskColumn>
@@ -739,35 +838,55 @@ export function TaskSampleDisplay({
 
     if (entry.track === 'Q1' && entry.task === 'task2') {
       const record = asDictionary(original.record);
+      const task2DisplayedMemories =
+        linkedGoldMemories.length > 0
+          ? linkedGoldMemories.map(cloneMemoryRecord)
+          : getMemoryRecords(original.memory);
+      const task2MemorySeed =
+        linkedGoldMemories.length > 0 ? linkedGoldMemories.map(cloneMemoryRecord) : getMemoryRecords(original.answer);
       const task2Annotation = createTask2Annotation(
         getNewDialogueSeeds(record?.new_dialogue),
-        getMemoryRecords(original.answer),
+        task2MemorySeed,
         activeIntegratedAnnotation,
       );
 
       return (
         <ThreeColumnTaskLayout>
-          <TaskColumn step="1" title="新对话" helper="先看这段新对话，判断它会不会改变或新增用户记忆。">
+          <TaskColumn
+            step="1"
+            title="New Conversation"
+            helper="Read the new dialogue and decide whether it should update or add memories."
+          >
             <ConversationBlock
-              title="新对话"
-              description="可能触发记忆更新的新对话。"
+              title="New Conversation"
+              description="Dialogue that may trigger memory updates."
               turns={normalizeConversation(record?.new_dialogue)}
               translationEnabled={translationEnabled}
             />
           </TaskColumn>
-          <TaskColumn step="2" title="更新前旧记忆" helper="对照旧记忆，判断新对话应该修改哪条、保留哪条或新增哪条。">
+          <TaskColumn
+            step="2"
+            title="Existing Memories"
+            helper="Review the current memories before deciding what to keep, revise, or add."
+          >
             <MemoryListBlock
-              title="旧记忆"
-              description="更新前已有的记忆状态。"
-              items={asArray(original.memory)}
+              title="Existing Memory Set"
+              description="Current memories before applying the update."
+              items={task2DisplayedMemories}
+              displayMode="carousel"
               translationEnabled={translationEnabled}
             />
           </TaskColumn>
-          <TaskColumn step="3" title="编辑 Golden 更新结果" helper="在这里直接改最终要保存的更新后 memory 字段。">
+          <TaskColumn
+            step="3"
+            title="Updated Golden Memories"
+            helper="Edit the final post-update memory records directly in this panel."
+          >
             <StructuredMemoryEditor
-              title="Golden 更新记忆字段编辑"
-              description="这些字段会按原始 taxonomy 写回 task2 golden_answer。"
+              title="Updated Memory Editor"
+              description="These fields will be saved back as the task2 golden answer."
               memories={task2Annotation.editableUpdatedMemories}
+              displayMode="carousel"
               translationEnabled={translationEnabled}
               onChange={(editableUpdatedMemories) =>
                 updateIntegratedAnnotation(markDraft(task2Annotation, { editableUpdatedMemories }))
@@ -775,7 +894,7 @@ export function TaskSampleDisplay({
             />
             <IntegratedSaveBar
               error={integratedValidationError}
-              buttonLabel="保存 Golden 更新记忆"
+              buttonLabel="Save Updated Memories"
               onSave={() =>
                 saveIntegratedAnnotation(
                   task2Annotation,
@@ -789,14 +908,22 @@ export function TaskSampleDisplay({
     }
 
     if (entry.track === 'Q1' && entry.task === 'task3') {
+      const task3CandidateMemories =
+        linkedGoldMemories.length > 0
+          ? linkedGoldMemories.map(cloneMemoryRecord)
+          : getMemoryRecords(original.candidate_memories);
+      const task3SelectedMemorySeed = syncSelectedMemoryWithGold(
+        getSelectedMemoryRecord(original.selected_memory),
+        linkedGoldMemories,
+      );
       const task3Annotation = createTask3Annotation(
         asString(original.query) ?? '',
-        getSelectedMemoryRecord(original.selected_memory),
+        task3SelectedMemorySeed,
         activeIntegratedAnnotation,
       );
       const validateTask3 = () => {
         if (!task3Annotation.queryText.trim()) {
-          return 'Query 不能为空。';
+          return 'Query cannot be empty.';
         }
 
         return task3Annotation.editableSelectedMemory
@@ -806,41 +933,56 @@ export function TaskSampleDisplay({
 
       return (
         <ThreeColumnTaskLayout>
-          <TaskColumn step="1" title="编辑 Query" helper="直接修改最终要保存的 query。">
+          <TaskColumn
+            step="1"
+            title="Golden Query"
+            helper="Edit the final query directly in this panel."
+          >
             <TextAreaField
               label="Golden Query"
               value={task3Annotation.queryText}
               onChange={(queryText) => updateIntegratedAnnotation(markDraft(task3Annotation, { queryText }))}
-              placeholder="填写最终应保留的 query。"
+              placeholder="Enter the final query to keep."
+              translationEnabled={translationEnabled}
             />
           </TaskColumn>
-          <TaskColumn step="2" title="候选记忆" helper="横向查看候选记忆池，判断哪条最能支持当前查询。">
+          <TaskColumn
+            step="2"
+            title="Candidate Memories"
+            helper="Review candidate memories one by one and decide which one best supports the query."
+          >
             <MemoryListBlock
-              title="候选记忆"
-              description="用于审核查询与记忆匹配关系的候选记忆池。"
-              items={asArray(original.candidate_memories)}
+              title="Candidate Memory Pool"
+              description="Candidate memories used to verify the query-memory match."
+              items={task3CandidateMemories}
+              displayMode="carousel"
               searchable
               translationEnabled={translationEnabled}
             />
           </TaskColumn>
-          <TaskColumn step="3" title="编辑 Golden 选中记忆" helper="直接修改 selected memory 的完整字段并保存。">
+          <TaskColumn
+            step="3"
+            title="Selected Memory"
+            helper="Edit the final selected memory directly here."
+          >
             {task3Annotation.editableSelectedMemory ? (
               <StructuredMemoryEditor
-                title="Golden 选中记忆字段编辑"
-                description="保留 selected memory 的原始字段。"
+                title="Selected Memory Editor"
+                description="Preserve the selected memory structure while editing its fields."
                 memories={[task3Annotation.editableSelectedMemory]}
+                displayMode="carousel"
                 translationEnabled={translationEnabled}
                 onChange={(nextMemories) =>
                   updateIntegratedAnnotation(
                     markDraft(task3Annotation, { editableSelectedMemory: nextMemories[0] ?? null }),
                   )
                 }
-                addButtonLabel="补回 Selected Memory"
+                addButtonLabel="Restore Selected Memory"
               />
             ) : null}
             <IntegratedSaveBar
               error={integratedValidationError}
-              buttonLabel="保存 Query 和选中记忆"
+              buttonLabel="Save Query And Selected Memory"
               onSave={() => saveIntegratedAnnotation(task3Annotation, validateTask3())}
             />
           </TaskColumn>
@@ -849,15 +991,24 @@ export function TaskSampleDisplay({
     }
 
     if (entry.track === 'Q1' && entry.task === 'task4') {
-      const querySeeds = buildTask4QuerySeeds(original);
-      const selectedMemorySeed = getTask4SelectedMemoryRecord(original);
+      const querySeeds = buildTask4QuerySeeds(original).map((seed) => ({
+        ...seed,
+        selectedMemorySeed: syncSelectedMemoryWithGold(seed.selectedMemorySeed, linkedGoldMemories),
+      }));
+      const selectedMemorySeed = syncSelectedMemoryWithGold(
+        getTask4SelectedMemoryRecord(original),
+        linkedGoldMemories,
+      );
       const task4Annotation = createTask4Annotation(
         querySeeds,
         selectedMemorySeed,
         entry.ability,
         activeIntegratedAnnotation,
       );
-      const candidateMemories = getMemoryRecords(original.extracted_memory);
+      const candidateMemories =
+        linkedGoldMemories.length > 0
+          ? linkedGoldMemories.map(cloneMemoryRecord)
+          : getMemoryRecords(original.extracted_memory);
       const selectedMemoryItems = task4Annotation.editableSelectedMemory
         ? [task4Annotation.editableSelectedMemory]
         : [];
@@ -869,6 +1020,11 @@ export function TaskSampleDisplay({
       const otherCandidateMemories = candidateMemories.filter(
         (memory) => !selectedMemoryIds.has(String(memory.memory_id ?? '')),
       );
+      const clampedTask4QueryIndex =
+        task4Annotation.subAnnotations.length > 0
+          ? Math.min(activeTask4QueryIndex, task4Annotation.subAnnotations.length - 1)
+          : 0;
+      const activeTask4SubAnnotation = task4Annotation.subAnnotations[clampedTask4QueryIndex] ?? null;
       const updateTask4SubAnnotation = (
         queryId: string,
         patch: Partial<Q1Task4SubAnnotation>,
@@ -894,12 +1050,12 @@ export function TaskSampleDisplay({
       };
       const validateTask4 = () => {
         if (task4Annotation.subAnnotations.length === 0) {
-          return '至少需要一个 ability query。';
+          return 'At least one ability query is required.';
         }
 
         const emptyQuery = task4Annotation.subAnnotations.find((item) => !item.queryText.trim());
         if (emptyQuery) {
-          return `Query ${emptyQuery.queryId} 不能为空。`;
+          return `Query ${emptyQuery.queryId} cannot be empty.`;
         }
 
         const memoryValidation = validateTask4SelectedMemoryRecord(task4Annotation.editableSelectedMemory);
@@ -909,7 +1065,7 @@ export function TaskSampleDisplay({
 
         const incompleteVerdict = task4Annotation.subAnnotations.find((item) => !item.overallVerdict);
         if (incompleteVerdict) {
-          return `Query ${incompleteVerdict.queryId} 需要填写总体结论。`;
+          return `Query ${incompleteVerdict.queryId} requires an overall verdict.`;
         }
 
         const needsDetail = task4Annotation.subAnnotations.find(
@@ -919,7 +1075,7 @@ export function TaskSampleDisplay({
             !item.revisionSuggestion.trim(),
         );
         if (needsDetail) {
-          return `Query ${needsDetail.queryId} 不完全合理时，需要选择问题类型或填写修改建议。`;
+          return `Query ${needsDetail.queryId} needs issue types or a revision suggestion when it is not fully reasonable.`;
         }
 
         return null;
@@ -927,37 +1083,48 @@ export function TaskSampleDisplay({
 
       return (
         <ThreeColumnTaskLayout>
-          <TaskColumn step="1" title="对话依据" helper="先读用户对话，确认 selected memory 是否真的由对话支持。">
+          <TaskColumn
+            step="1"
+            title="Conversation Evidence"
+            helper="Read the dialogue and confirm whether the selected memory is actually supported."
+          >
             <ConversationBlock
-              title="对话上下文"
+              title="Conversation Context"
               turns={normalizeConversation(original.conversation)}
               translationEnabled={translationEnabled}
             />
           </TaskColumn>
-          <TaskColumn step="2" title="编辑 Selected Memory" helper="确认目标记忆是否支撑当前 ability query，必要时直接修改字段。">
+          <TaskColumn
+            step="2"
+            title="Selected Memory"
+            helper="Check whether the selected memory is the right support for the current ability queries."
+          >
             {selectedMemoryItems.length > 0 ? (
               <StructuredMemoryEditor
-                title="Selected Memory 字段编辑"
-                description="这条记忆是 task4 query 应该依赖的目标记忆。"
+                title="Selected Memory Editor"
+                description="This memory should support the task4 ability queries."
                 memories={selectedMemoryItems}
+                displayMode="carousel"
                 translationEnabled={translationEnabled}
                 onChange={(nextMemories) => updateTask4SelectedMemory(nextMemories[0] ?? null)}
-                addButtonLabel="补回 Selected Memory"
+                addButtonLabel="Restore Selected Memory"
               />
             ) : (
               <StructuredMemoryEditor
-                title="Selected Memory 字段编辑"
-                description="当前样本缺少 selected memory，可以在这里补回。"
+                title="Selected Memory Editor"
+                description="This sample does not currently have a selected memory. Add it back here if needed."
                 memories={[]}
+                displayMode="carousel"
                 translationEnabled={translationEnabled}
                 onChange={(nextMemories) => updateTask4SelectedMemory(nextMemories[0] ?? null)}
-                addButtonLabel="补回 Selected Memory"
+                addButtonLabel="Restore Selected Memory"
               />
             )}
             <MemoryListBlock
-              title="其他候选记忆"
-              description="用于检查 selected memory 是否选对。"
+              title="Other Candidate Memories"
+              description="Review other candidate memories without leaving this column."
               items={otherCandidateMemories}
+              displayMode="carousel"
               searchable
               collapsible
               collapsedByDefault
@@ -966,100 +1133,147 @@ export function TaskSampleDisplay({
           </TaskColumn>
           <TaskColumn
             step="3"
-            title="标注 Ability Query"
-            helper="依据对话和 selected memory，判断每个 query 是否测试当前 ability，并可直接修改 query。"
+            title="Ability Queries"
+            helper="Review and edit one query at a time while keeping the conversation and selected memory visible."
           >
             <div className="space-y-6">
-              {task4Annotation.subAnnotations.map((item, index) => (
-                <div key={item.queryId} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
-                      Query {index + 1}
-                    </span>
-                    <span className="text-xs text-slate-500">{item.queryId}</span>
-                    {entry.ability ? (
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
-                        {entry.ability}
-                      </span>
-                    ) : null}
+              {activeTask4SubAnnotation ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                      Ability Query
+                    </p>
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {activeTask4SubAnnotation.queryId}
+                    </p>
                   </div>
-                  <TextAreaField
-                    label="Ability Query"
-                    value={item.queryText}
-                    onChange={(queryText) => updateTask4SubAnnotation(item.queryId, { queryText })}
-                    placeholder="填写最终应保留的 ability query。"
-                  />
-                  <RadioField
-                    label="总体结论"
-                    value={item.overallVerdict}
-                    options={TASK4_VERDICT_OPTIONS}
-                    onChange={(overallVerdict) =>
-                      updateTask4SubAnnotation(item.queryId, {
-                        overallVerdict: overallVerdict as Q1Task4SubAnnotation['overallVerdict'],
-                      })
-                    }
-                  />
-                  <RadioField
-                    label="是否测试目标 ability"
-                    value={item.testsTargetAbility}
-                    options={TASK4_TERNARY_OPTIONS}
-                    onChange={(testsTargetAbility) =>
-                      updateTask4SubAnnotation(item.queryId, {
-                        testsTargetAbility: testsTargetAbility as Q1Task4SubAnnotation['testsTargetAbility'],
-                      })
-                    }
-                  />
-                  <RadioField
-                    label="对 selected memory 的依赖强度"
-                    value={item.memoryDependency}
-                    options={TASK4_DEPENDENCY_OPTIONS}
-                    onChange={(memoryDependency) =>
-                      updateTask4SubAnnotation(item.queryId, {
-                        memoryDependency: memoryDependency as Q1Task4SubAnnotation['memoryDependency'],
-                      })
-                    }
-                  />
-                  <RadioField
-                    label="Ability 纯度"
-                    value={item.abilityPurity}
-                    options={TASK4_PURITY_OPTIONS}
-                    onChange={(abilityPurity) =>
-                      updateTask4SubAnnotation(item.queryId, {
-                        abilityPurity: abilityPurity as Q1Task4SubAnnotation['abilityPurity'],
-                      })
-                    }
-                  />
-                  <CheckboxField
-                    label="问题类型"
-                    values={item.issueTypes}
-                    options={TASK4_ISSUE_TYPE_OPTIONS}
-                    onChange={(issueTypes) => updateTask4SubAnnotation(item.queryId, { issueTypes })}
-                  />
-                  <TextAreaField
-                    label="证据说明"
-                    value={item.evidenceNote}
-                    onChange={(evidenceNote) => updateTask4SubAnnotation(item.queryId, { evidenceNote })}
-                    placeholder="说明对话和 selected memory 如何支持或不支持这个 query。"
-                  />
-                  <TextAreaField
-                    label="修改建议"
-                    value={item.revisionSuggestion}
-                    onChange={(revisionSuggestion) => updateTask4SubAnnotation(item.queryId, { revisionSuggestion })}
-                    placeholder="如果 query 不合适，写出建议改法。"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTask4QueryIndex((index) => Math.max(index - 1, 0))}
+                      disabled={clampedTask4QueryIndex === 0}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-xs text-slate-500">
+                      {clampedTask4QueryIndex + 1} / {task4Annotation.subAnnotations.length}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setActiveTask4QueryIndex((index) =>
+                          Math.min(index + 1, task4Annotation.subAnnotations.length - 1),
+                        )
+                      }
+                      disabled={clampedTask4QueryIndex >= task4Annotation.subAnnotations.length - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
-              ))}
+              ) : null}
+              {task4Annotation.subAnnotations
+                .slice(clampedTask4QueryIndex, clampedTask4QueryIndex + 1)
+                .map((item) => (
+                  <div
+                    key={item.queryId}
+                    className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+                        Query {clampedTask4QueryIndex + 1}
+                      </span>
+                      <span className="text-xs text-slate-500">{item.queryId}</span>
+                      {entry.ability ? (
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
+                          {entry.ability}
+                        </span>
+                      ) : null}
+                    </div>
+                    <TextAreaField
+                      label="Ability Query"
+                      value={item.queryText}
+                      onChange={(queryText) => updateTask4SubAnnotation(item.queryId, { queryText })}
+                      placeholder="Enter the final ability query to keep."
+                      translationEnabled={translationEnabled}
+                    />
+                    <RadioField
+                      label="Overall Verdict"
+                      value={item.overallVerdict}
+                      options={TASK4_VERDICT_OPTIONS}
+                      onChange={(overallVerdict) =>
+                        updateTask4SubAnnotation(item.queryId, {
+                          overallVerdict: overallVerdict as Q1Task4SubAnnotation['overallVerdict'],
+                        })
+                      }
+                    />
+                    <RadioField
+                      label="Tests Target Ability"
+                      value={item.testsTargetAbility}
+                      options={TASK4_TERNARY_OPTIONS}
+                      onChange={(testsTargetAbility) =>
+                        updateTask4SubAnnotation(item.queryId, {
+                          testsTargetAbility: testsTargetAbility as Q1Task4SubAnnotation['testsTargetAbility'],
+                        })
+                      }
+                    />
+                    <RadioField
+                      label="Selected Memory Dependency"
+                      value={item.memoryDependency}
+                      options={TASK4_DEPENDENCY_OPTIONS}
+                      onChange={(memoryDependency) =>
+                        updateTask4SubAnnotation(item.queryId, {
+                          memoryDependency: memoryDependency as Q1Task4SubAnnotation['memoryDependency'],
+                        })
+                      }
+                    />
+                    <RadioField
+                      label="Ability Purity"
+                      value={item.abilityPurity}
+                      options={TASK4_PURITY_OPTIONS}
+                      onChange={(abilityPurity) =>
+                        updateTask4SubAnnotation(item.queryId, {
+                          abilityPurity: abilityPurity as Q1Task4SubAnnotation['abilityPurity'],
+                        })
+                      }
+                    />
+                    <CheckboxField
+                      label="Issue Types"
+                      values={item.issueTypes}
+                      options={TASK4_ISSUE_TYPE_OPTIONS}
+                      onChange={(issueTypes) => updateTask4SubAnnotation(item.queryId, { issueTypes })}
+                    />
+                    <TextAreaField
+                      label="Evidence Note"
+                      value={item.evidenceNote}
+                      onChange={(evidenceNote) => updateTask4SubAnnotation(item.queryId, { evidenceNote })}
+                      placeholder="Explain how the conversation and selected memory support or fail to support this query."
+                    />
+                    <TextAreaField
+                      label="Revision Suggestion"
+                      value={item.revisionSuggestion}
+                      onChange={(revisionSuggestion) =>
+                        updateTask4SubAnnotation(item.queryId, { revisionSuggestion })
+                      }
+                      placeholder="If the query is not appropriate, write the suggested revision here."
+                    />
+                  </div>
+                ))}
               <TextAreaField
-                label="样本备注"
+                label="Sample Note"
                 value={task4Annotation.annotatorNote ?? ''}
                 onChange={(annotatorNote) =>
                   updateIntegratedAnnotation(markDraft(task4Annotation, { annotatorNote }))
                 }
-                placeholder="可选：记录整个 session 的备注。"
+                placeholder="Optional note for the full session."
               />
               <IntegratedSaveBar
                 error={integratedValidationError}
-                buttonLabel="保存 Task4 标注"
+                buttonLabel="Save Task4 Annotation"
                 onSave={() => saveIntegratedAnnotation(task4Annotation, validateTask4())}
               />
             </div>
@@ -1067,225 +1281,131 @@ export function TaskSampleDisplay({
         </ThreeColumnTaskLayout>
       );
     }
-
     if (entry.track === 'Q2' && entry.task === 'task1') {
       const probe = asDictionary(original.probe);
       const judgeScoreItems = [
         typeof itemData.judge_score === 'number'
-          ? { label: '评审分数', text: String(itemData.judge_score) }
+          ? { label: 'Judge Score', text: String(itemData.judge_score) }
           : null,
         typeof itemData.final_score === 'number'
-          ? { label: '最终分数', text: String(itemData.final_score) }
+          ? { label: 'Final Score', text: String(itemData.final_score) }
           : null,
       ].filter(Boolean) as Array<{ label?: string; text: string }>;
+
       return (
         <>
-          <DisplaySection title="输入上下文" tone="input">
+          <DisplaySection title="Input Context" tone="input">
             <ConversationBlock
-              title="对话"
-              description="展示给抽取模型和人工评审者的原始对话。"
+              title="Conversation"
+              description="Conversation provided to the extraction model and the reviewer."
               turns={normalizeConversation(probe?.dialogue)}
               translationEnabled={translationEnabled}
             />
             <MemoryListBlock
-              title="金标准记忆"
-              items={asArray(probe?.ground_truth_memories)}
+              title="Golden Memories"
+              description="Reference memories for this extraction sample."
+              items={getMemoryRecords(probe?.ground_truth_memories)}
               translationEnabled={translationEnabled}
             />
           </DisplaySection>
-          {modelOutput ? (
-            <DisplaySection title="待审核输出" tone="output">
-              <JsonPreviewBlock title="模型输出" description="指定模型生成的结构化抽取结果。" value={modelOutput} />
-            </DisplaySection>
-          ) : null}
-          {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <DisplaySection title="评审可见输出" tone="judge">
-              <JsonPreviewBlock title="评审输出" description="用于一致性审核的评审可见载荷。" value={judgeOutputValue} />
-              {judgeScoreItems.length > 0 ? (
-                <TextBlock
-                  title="评审分数摘要"
-                  description="LLM 评审流水线输出的标量分数。"
-                  items={judgeScoreItems}
-                  translationEnabled={translationEnabled}
-                />
-              ) : null}
-            </DisplaySection>
-          ) : null}
+          <DisplaySection title="Outputs To Review" tone="output">
+            {modelOutput ? <JsonPreviewBlock title="Model Output" value={modelOutput} /> : null}
+            {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
+              <JsonPreviewBlock title="Judge Output" value={judgeOutputValue} />
+            ) : null}
+            {judgeScoreItems.length > 0 ? (
+              <TextBlock title="Scores" items={judgeScoreItems} translationEnabled={translationEnabled} />
+            ) : null}
+          </DisplaySection>
         </>
       );
     }
 
     if (entry.track === 'Q2' && entry.task === 'task2') {
       const record = asDictionary(original.record);
-      const modelMemoryItems = Array.isArray(modelOutput?.memory_items) ? modelOutput.memory_items : [];
-      const rawModelOutput = formatPossiblyStructuredString(modelOutput?.raw_output);
-      const pairReviewItems = buildJudgeReviewTextItems(judgeOutput?.pair_reviews, 'pair_reviews');
-      const missingReviewItems = buildJudgeReviewTextItems(judgeOutput?.missing_reviews, 'missing_reviews');
-      const extraReviewItems = buildJudgeReviewTextItems(judgeOutput?.extra_reviews, 'extra_reviews');
       const judgeScoreItems = [
         typeof itemData.judge_score === 'number'
-          ? { label: '评审分数', text: String(itemData.judge_score) }
+          ? { label: 'Judge Score', text: String(itemData.judge_score) }
           : null,
         typeof itemData.final_score === 'number'
-          ? { label: '最终分数', text: String(itemData.final_score) }
+          ? { label: 'Final Score', text: String(itemData.final_score) }
           : null,
       ].filter(Boolean) as Array<{ label?: string; text: string }>;
+
       return (
         <>
-          <DisplaySection title="输入上下文" tone="input">
+          <DisplaySection title="Input Context" tone="input">
             <MemoryListBlock
-              title="现有记忆"
-              description="更新前的记忆状态。"
+              title="Existing Memories"
+              description="Memory state before the update."
               items={asArray(original.memory)}
               translationEnabled={translationEnabled}
             />
             <ConversationBlock
-              title="新对话"
-              description="用于评估更新是否合理的对话。"
+              title="New Conversation"
+              description="Dialogue used to judge whether the update is reasonable."
               turns={normalizeConversation(record?.new_dialogue)}
               translationEnabled={translationEnabled}
             />
             <MemoryListBlock
-              title="参考更新记忆"
-              items={asArray(original.answer)}
+              title="Reference Updated Memories"
+              description="Reference updated memories when available."
+              items={getMemoryRecords(original.answer)}
               translationEnabled={translationEnabled}
             />
           </DisplaySection>
-          {modelOutput ? (
-            <DisplaySection title="待审核输出" tone="output">
-              {modelMemoryItems.length > 0 ? (
-                <MemoryListBlock
-                  title="模型记忆输出"
-                  description="模型生成的结构化记忆更新结果。"
-                  items={modelMemoryItems as Array<Record<string, unknown>>}
-                  translationEnabled={translationEnabled}
-                />
-              ) : null}
-              {rawModelOutput ? (
-                <TextBlock
-                  title="模型原始输出"
-                  description="模型生成的原始文本。"
-                  items={[{ text: rawModelOutput }]}
-                  translationEnabled={translationEnabled}
-                />
-              ) : !modelMemoryItems.length ? (
-                <JsonPreviewBlock title="模型输出" value={modelOutput} />
-              ) : null}
-            </DisplaySection>
-          ) : null}
-          {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <DisplaySection title="评审可见输出" tone="judge">
-              {pairReviewItems.length > 0 ? (
-                <TextBlock
-                  title="配对审核项"
-                  description="评审器对已匹配金标准/预测对的审核结果。"
-                  items={pairReviewItems}
-                  translationEnabled={translationEnabled}
-                />
-              ) : null}
-              {missingReviewItems.length > 0 ? (
-                <TextBlock
-                  title="缺失审核项"
-                  description="评审器认为本应被抽取出的金标准条目。"
-                  items={missingReviewItems}
-                  translationEnabled={translationEnabled}
-                />
-              ) : null}
-              {extraReviewItems.length > 0 ? (
-                <TextBlock
-                  title="多余审核项"
-                  description="评审器标记为多余或幻觉的预测条目。"
-                  items={extraReviewItems}
-                  translationEnabled={translationEnabled}
-                />
-              ) : null}
-              {pairReviewItems.length === 0 &&
-              missingReviewItems.length === 0 &&
-              extraReviewItems.length === 0 ? (
-                <JsonPreviewBlock title="评审输出" value={judgeOutputValue} />
-              ) : null}
-              {judgeScoreItems.length > 0 ? (
-                <TextBlock
-                  title="评审分数摘要"
-                  description="LLM 评审流水线输出的标量分数。"
-                  items={judgeScoreItems}
-                  translationEnabled={translationEnabled}
-                />
-              ) : null}
-            </DisplaySection>
-          ) : null}
+          <DisplaySection title="Outputs To Review" tone="output">
+            {modelOutput ? <JsonPreviewBlock title="Model Output" value={modelOutput} /> : null}
+            {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
+              <JsonPreviewBlock title="Judge Output" value={judgeOutputValue} />
+            ) : null}
+            {judgeScoreItems.length > 0 ? (
+              <TextBlock title="Scores" items={judgeScoreItems} translationEnabled={translationEnabled} />
+            ) : null}
+          </DisplaySection>
         </>
       );
     }
 
     if (entry.track === 'Q2' && entry.task === 'task3') {
-      const selectedMemory = asDictionary(original.selected_memory);
+      const selectedMemory = getSelectedMemoryRecord(original.selected_memory);
+      const selectedMemoryItems = selectedMemory ? [selectedMemory] : [];
+      const queryText = asString(original.query);
       const task3ModelItems = getTask3ModelTextItems(modelOutput);
-      const judgeReason = formatPossiblyStructuredString(judgeOutput?.reason);
-      const judgeSummaryItems = [
-        typeof judgeOutput?.used_memory === 'boolean'
-          ? { label: '是否使用选中记忆', text: judgeOutput.used_memory ? '是' : '否' }
-          : null,
-        typeof judgeOutput?.score === 'number'
-          ? { label: '评审分数', text: String(judgeOutput.score) }
-          : null,
-        judgeReason ? { label: '评审理由', text: judgeReason } : null,
-      ].filter(Boolean) as Array<{ label?: string; text: string }>;
+
       return (
         <>
-          <DisplaySection title="输入上下文" tone="input">
-            <TextBlock
-              title="查询"
-              items={asString(original.query) ? [{ text: original.query }] : []}
-              translationEnabled={translationEnabled}
-            />
-            <MemoryListBlock
-              title="选中记忆"
-              items={selectedMemory ? [selectedMemory] : []}
-              translationEnabled={translationEnabled}
-            />
-          </DisplaySection>
-          {task3ModelItems.length > 0 ? (
-            <DisplaySection title="待审核输出" tone="output">
+          <DisplaySection title="Input Context" tone="input">
+            {queryText ? (
               <TextBlock
-                title="模型回答"
-                description="评审器用来判断记忆使用情况的回答。"
+                title="Query"
+                items={[{ text: queryText }]}
+                translationEnabled={translationEnabled}
+              />
+            ) : null}
+            {selectedMemoryItems.length > 0 ? (
+              <MemoryListBlock
+                title="Selected Memory"
+                description="Memory chosen for this query."
+                items={selectedMemoryItems}
+                translationEnabled={translationEnabled}
+              />
+            ) : null}
+          </DisplaySection>
+          <DisplaySection title="Outputs To Review" tone="output">
+            {task3ModelItems.length > 0 ? (
+              <TextBlock
+                title="Model Responses"
                 items={task3ModelItems}
                 translationEnabled={translationEnabled}
               />
-            </DisplaySection>
-          ) : getResponseItems(modelOutput).length > 0 ? (
-            <DisplaySection title="待审核输出" tone="output">
-              <TextBlock
-                title="模型回答"
-                description="评审器用来判断记忆使用情况的回答。"
-                items={getResponseItems(modelOutput)}
-                translationEnabled={translationEnabled}
-              />
-            </DisplaySection>
-          ) : modelOutput ? (
-            <DisplaySection title="待审核输出" tone="output">
-              <JsonPreviewBlock title="模型输出" value={modelOutput} />
-            </DisplaySection>
-          ) : null}
-          {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <DisplaySection title="评审可见输出" tone="judge">
-              {judgeSummaryItems.length > 0 ? (
-                <TextBlock
-                  title="评审输出"
-                  description="包含是否使用记忆、分数与解释。"
-                  items={judgeSummaryItems}
-                  translationEnabled={translationEnabled}
-                />
-              ) : (
-                <JsonPreviewBlock
-                  title="评审输出"
-                  description="包含是否使用记忆、分数与解释。"
-                  value={judgeOutputValue}
-                />
-              )}
-            </DisplaySection>
-          ) : null}
+            ) : modelOutput ? (
+              <JsonPreviewBlock title="Model Output" value={modelOutput} />
+            ) : null}
+            {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
+              <JsonPreviewBlock title="Judge Output" value={judgeOutputValue} />
+            ) : null}
+          </DisplaySection>
         </>
       );
     }
@@ -1300,7 +1420,7 @@ export function TaskSampleDisplay({
           }
 
           return {
-            label: asString(record.query_id) ?? `查询-${index + 1}`,
+            label: asString(record.query_id) ?? `query-${index + 1}`,
             text,
           };
         })
@@ -1308,39 +1428,35 @@ export function TaskSampleDisplay({
 
       return (
         <>
-          <DisplaySection title="输入上下文" tone="input">
+          <DisplaySection title="Input Context" tone="input">
             <MemoryListBlock
-              title="抽取出的记忆"
+              title="Extracted Memories"
               items={asArray(original.extracted_memory)}
               translationEnabled={translationEnabled}
             />
             <ConversationBlock
-              title="对话上下文"
+              title="Conversation Context"
               turns={normalizeConversation(original.conversation)}
               translationEnabled={translationEnabled}
             />
           </DisplaySection>
-          <DisplaySection title="待审核输出" tone="output">
-            <TextBlock
-              title="能力查询"
-              items={queryItems}
-              translationEnabled={translationEnabled}
-            />
+          <DisplaySection title="Outputs To Review" tone="output">
+            <TextBlock title="Ability Queries" items={queryItems} translationEnabled={translationEnabled} />
             {getResponseItems(modelOutput).length > 0 ? (
               <TextBlock
-                title="模型回答"
+                title="Model Responses"
                 items={getResponseItems(modelOutput)}
                 translationEnabled={translationEnabled}
               />
             ) : modelOutput ? (
-              <JsonPreviewBlock title="模型输出" value={modelOutput} />
+              <JsonPreviewBlock title="Model Output" value={modelOutput} />
             ) : null}
           </DisplaySection>
           {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-            <DisplaySection title="评审可见输出" tone="judge">
-              <JsonPreviewBlock title="评审输出" value={judgeOutputValue} />
+            <DisplaySection title="Judge Visible Output" tone="judge">
+              <JsonPreviewBlock title="Judge Output" value={judgeOutputValue} />
               {typeof itemData.judge_score !== 'undefined' ? (
-                <JsonPreviewBlock title="评审分数摘要" value={itemData.judge_score} />
+                <JsonPreviewBlock title="Judge Score Summary" value={itemData.judge_score} />
               ) : null}
             </DisplaySection>
           ) : null}
@@ -1350,10 +1466,10 @@ export function TaskSampleDisplay({
 
     return (
       <>
-        <JsonPreviewBlock title="原始样本数据" value={original} />
-        {modelOutput ? <JsonPreviewBlock title="模型输出" value={modelOutput} /> : null}
+        <JsonPreviewBlock title="Original Sample Data" value={original} />
+        {modelOutput ? <JsonPreviewBlock title="Model Output" value={modelOutput} /> : null}
         {showJudgeArtifacts && typeof judgeOutputValue !== 'undefined' ? (
-          <JsonPreviewBlock title="评审输出" value={judgeOutputValue} />
+          <JsonPreviewBlock title="Judge Output" value={judgeOutputValue} />
         ) : null}
       </>
     );
@@ -1377,7 +1493,7 @@ export function TaskSampleDisplay({
             className="gap-2 rounded-xl"
           >
             <Languages className="h-4 w-4" />
-            {translationEnabled ? '翻译已开启' : '开启翻译'}
+            {translationEnabled ? 'Translation On' : 'Turn On Translation'}
           </Button>
         </div>
       </CardHeader>
@@ -1387,3 +1503,4 @@ export function TaskSampleDisplay({
     </Card>
   );
 }
+

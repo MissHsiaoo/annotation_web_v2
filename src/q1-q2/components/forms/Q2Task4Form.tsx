@@ -33,6 +33,7 @@ import {
   useAnnotationDraftSync,
   withDraftMeta,
 } from './annotationFormShell';
+import { TranslatedText } from '../display/TranslatedText';
 import { CheckboxField, NumberField, RadioField, TextAreaField } from './FormFields';
 
 interface QuerySeed {
@@ -406,7 +407,13 @@ export function Q2Task4Form({
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Active query
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-800">{item.queryText}</p>
+                    <div className="mt-2">
+                      <TranslatedText
+                        text={item.queryText}
+                        translationEnabled
+                        className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800"
+                      />
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

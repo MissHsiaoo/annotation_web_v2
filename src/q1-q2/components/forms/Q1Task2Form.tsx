@@ -150,9 +150,10 @@ export function Q1Task2Form({
           title="Golden 更新记忆字段编辑"
           description="这些字段会在导出 merged dataset 时原样写回 task2 的 golden_answer。"
           memories={formState.editableUpdatedMemories}
-          onChange={(editableUpdatedMemories) =>
-            setFormState((current) => withDraftMeta(current, { editableUpdatedMemories }))
-          }
+          onChange={(editableUpdatedMemories) => {
+            setValidationError('');
+            setFormState((current) => withDraftMeta(current, { editableUpdatedMemories }));
+          }}
         />
 
         <div className={annotationFormFooterClass}>

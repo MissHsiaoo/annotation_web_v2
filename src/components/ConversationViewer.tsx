@@ -41,7 +41,7 @@ export function ConversationViewer({
 }: ConversationViewerProps) {
   const [translations, setTranslations] = useState<{ [key: number]: string }>({});
   const [translating, setTranslating] = useState<{ [key: number]: boolean }>({});
-  const [translationEnabled, setTranslationEnabled] = useState<boolean>(false); // Default OFF
+  const [translationEnabled, setTranslationEnabled] = useState<boolean>(true); // Default ON
 
   if (!session) {
     return (

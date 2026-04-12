@@ -122,9 +122,10 @@ export function Q1Task1Form({ initialValue, goldMemorySeed, onDraftChange, onSav
           title="Golden Memory 字段编辑"
           description="不要改成简化 schema。需要新增 memory 时，会按当前 taxonomy 自动创建完整字段。"
           memories={editableGoldMemories}
-          onChange={(editableGoldMemories) =>
-            setFormState((current) => withDraftMeta(current, { editableGoldMemories }))
-          }
+          onChange={(editableGoldMemories) => {
+            setValidationError('');
+            setFormState((current) => withDraftMeta(current, { editableGoldMemories }));
+          }}
         />
 
         <div className={annotationFormFooterClass}>

@@ -133,8 +133,12 @@ export function Q1Task3Form({
         <TextAreaField
           label="Golden Query"
           value={formState.queryText}
-          onChange={(queryText) => setFormState((current) => withDraftMeta(current, { queryText }))}
+          onChange={(queryText) => {
+            setValidationError('');
+            setFormState((current) => withDraftMeta(current, { queryText }));
+          }}
           placeholder="填写最终应保留的 query。"
+          translationEnabled
         />
 
         {formState.editableSelectedMemory ? (
@@ -142,11 +146,12 @@ export function Q1Task3Form({
             title="Golden 选中记忆字段编辑"
             description="保留 selected memory 的原始字段；导出 merged dataset 时会写回 task3.selected_memory。"
             memories={[formState.editableSelectedMemory]}
-            onChange={(nextMemories) =>
+            onChange={(nextMemories) => {
+              setValidationError('');
               setFormState((current) =>
                 withDraftMeta(current, { editableSelectedMemory: nextMemories[0] ?? null }),
-              )
-            }
+              );
+            }}
             addButtonLabel="补回 Selected Memory"
           />
         ) : null}

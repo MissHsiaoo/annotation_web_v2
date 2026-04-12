@@ -10,6 +10,7 @@ const translationCache: TranslationCache = {};
 // Track request timing to implement rate limiting
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 200; // Minimum 200ms between requests (Google is more permissive)
+const MAX_TRANSLATION_CHARS = 900;
 
 // Simple sleep function
 async function sleep(ms: number): Promise<void> {
@@ -74,6 +75,45 @@ async function fetchGoogleTranslate(text: string, maxRetries = 2): Promise<strin
   return null;
 }
 
+function splitTextForTranslation(text: string, maxChars = MAX_TRANSLATION_CHARS): string[] {
+  if (text.length <= maxChars) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  let start = 0;
+
+  while (start < text.length) {
+    let end = Math.min(start + maxChars, text.length);
+
+    if (end < text.length) {
+      const window = text.slice(start, end);
+      const breakCandidates = ['\n\n', '\n', '. ', '? ', '! ', '; ', '。', '？', '！', '；', ' '];
+      let breakOffset = -1;
+
+      for (const candidate of breakCandidates) {
+        const candidateIndex = window.lastIndexOf(candidate);
+        if (candidateIndex > breakOffset) {
+          breakOffset = candidateIndex + candidate.length;
+        }
+      }
+
+      if (breakOffset > Math.floor(maxChars * 0.5)) {
+        end = start + breakOffset;
+      }
+    }
+
+    const chunk = text.slice(start, end);
+    if (chunk.trim()) {
+      chunks.push(chunk);
+    }
+
+    start = end;
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}
+
 export async function translateToZhCN(text: string): Promise<string> {
   // Check cache first
   const cacheKey = text.trim();
@@ -94,18 +134,17 @@ export async function translateToZhCN(text: string): Promise<string> {
   }
 
   try {
-    // Limit text length to avoid issues
-    const textToTranslate = text.substring(0, 1000);
-    const translated = await fetchGoogleTranslate(textToTranslate);
-    
-    if (translated) {
-      translationCache[cacheKey] = translated;
-      return translated;
-    } else {
-      // Return original text if translation failed
-      translationCache[cacheKey] = text;
-      return text;
+    const chunks = splitTextForTranslation(text);
+    const translatedChunks: string[] = [];
+
+    for (const chunk of chunks) {
+      const translated = await fetchGoogleTranslate(chunk);
+      translatedChunks.push(translated ?? chunk);
     }
+
+    const mergedTranslation = translatedChunks.join('');
+    translationCache[cacheKey] = mergedTranslation || text;
+    return translationCache[cacheKey];
   } catch (error) {
     console.error('Translation error:', error);
     // Return original text on error

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Archive,
@@ -53,15 +53,19 @@ import type {
   LoadedManualCheckItem,
   ManualCheckDataset,
   ManualCheckDatasetEntry,
+  Q1Task1Annotation,
+  Q1Task2Annotation,
+  Q1Task3Annotation,
+  Q1Task4Annotation,
   SavedAnnotationEntry,
   TaskKey,
   TrackKey,
 } from '../types';
 
-// ─── Labels ──────────────────────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Labels 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 const TRACK_LABELS: Record<TrackKey, string> = {
-  Q1: '基准构建 (Q1)',
+  Q1: '标准构建 (Q1)',
   Q2: '评测对齐 (Q2)',
 };
 
@@ -80,7 +84,7 @@ const ABILITY_LABELS: Record<AbilityKey, string> = {
   ability5: '能力5',
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -121,7 +125,132 @@ function getEntryLabel(entry: ManualCheckDatasetEntry): string {
     : TASK_LABELS[entry.task];
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+function cloneMemoryRecords(memories: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  return memories.map((memory) => structuredClone(memory) as Record<string, unknown>);
+}
+
+function findMatchingGoldMemory(
+  goldMemories: Array<Record<string, unknown>>,
+  selectedMemory: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (!selectedMemory) {
+    return null;
+  }
+
+  const selectedMemoryId =
+    typeof selectedMemory.memory_id === 'string' && selectedMemory.memory_id.trim()
+      ? selectedMemory.memory_id
+      : null;
+
+  if (selectedMemoryId) {
+    const matchedById = goldMemories.find(
+      (memory) =>
+        typeof memory.memory_id === 'string' &&
+        memory.memory_id.trim() === selectedMemoryId,
+    );
+    if (matchedById) {
+      return structuredClone(matchedById) as Record<string, unknown>;
+    }
+  }
+
+  const selectedLabel =
+    typeof selectedMemory.label === 'string' && selectedMemory.label.trim() ? selectedMemory.label : null;
+  const selectedValue =
+    typeof selectedMemory.value === 'string' && selectedMemory.value.trim() ? selectedMemory.value : null;
+
+  const matchedByContent =
+    selectedLabel || selectedValue
+      ? goldMemories.find(
+          (memory) =>
+            (typeof memory.label === 'string' ? memory.label : null) === selectedLabel &&
+            (typeof memory.value === 'string' ? memory.value : null) === selectedValue,
+        )
+      : null;
+
+  return matchedByContent
+    ? (structuredClone(matchedByContent) as Record<string, unknown>)
+    : (structuredClone(selectedMemory) as Record<string, unknown>);
+}
+
+function syncExistingQ1AnnotationsFromTask1(
+  savedEntries: Record<string, SavedAnnotationEntry>,
+  task1Entry: SavedAnnotationEntry,
+): {
+  nextSavedEntries: Record<string, SavedAnnotationEntry>;
+  syncedEntryCount: number;
+} {
+  if (task1Entry.annotation.formType !== 'Q1:task1') {
+    return {
+      nextSavedEntries: savedEntries,
+      syncedEntryCount: 0,
+    };
+  }
+
+  const goldMemories = cloneMemoryRecords(task1Entry.annotation.editableGoldMemories ?? []);
+  const timestamp = new Date().toISOString();
+  let syncedEntryCount = 0;
+
+  const nextSavedEntries = Object.fromEntries(
+    Object.entries(savedEntries).map(([draftKey, entry]) => {
+      const isLinkedQ1Entry =
+        entry.track === 'Q1' &&
+        entry.sessionId === task1Entry.sessionId &&
+        entry.canonicalId === task1Entry.canonicalId &&
+        draftKey !== task1Entry.draftKey;
+
+      if (!isLinkedQ1Entry) {
+        return [draftKey, entry];
+      }
+
+      if (entry.annotation.formType === 'Q1:task2') {
+        const nextAnnotation: Q1Task2Annotation = {
+          ...entry.annotation,
+          editableUpdatedMemories: cloneMemoryRecords(goldMemories),
+          updatedAt: timestamp,
+        };
+        syncedEntryCount += 1;
+        return [draftKey, { ...entry, annotation: nextAnnotation }];
+      }
+
+      if (entry.annotation.formType === 'Q1:task3') {
+        const nextAnnotation: Q1Task3Annotation = {
+          ...entry.annotation,
+          editableSelectedMemory: findMatchingGoldMemory(goldMemories, entry.annotation.editableSelectedMemory),
+          updatedAt: timestamp,
+        };
+        syncedEntryCount += 1;
+        return [draftKey, { ...entry, annotation: nextAnnotation }];
+      }
+
+      if (entry.annotation.formType === 'Q1:task4') {
+        const nextSelectedMemory = findMatchingGoldMemory(
+          goldMemories,
+          entry.annotation.editableSelectedMemory,
+        );
+        const nextAnnotation: Q1Task4Annotation = {
+          ...entry.annotation,
+          editableSelectedMemory: nextSelectedMemory,
+          subAnnotations: entry.annotation.subAnnotations.map((item) => ({
+            ...item,
+            editableSelectedMemory: findMatchingGoldMemory(goldMemories, item.editableSelectedMemory),
+          })),
+          updatedAt: timestamp,
+        };
+        syncedEntryCount += 1;
+        return [draftKey, { ...entry, annotation: nextAnnotation }];
+      }
+
+      return [draftKey, entry];
+    }),
+  );
+
+  return {
+    nextSavedEntries,
+    syncedEntryCount,
+  };
+}
+
+// 鈹€鈹€鈹€ Sub-components 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 interface AppHeaderProps {
   dataset: ManualCheckDataset | null;
@@ -153,7 +282,7 @@ function AppHeader({
             {dataset.rootName} · {dataset.entries.length} 个视图
           </p>
         ) : (
-          <p className="mt-0.5 text-sm text-slate-500">导入数据集开始标注</p>
+          <p className="mt-0.5 text-sm text-slate-500">导入数据集后开始标注。</p>
         )}
       </div>
 
@@ -300,7 +429,7 @@ function DatasetControlBar({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="min-w-[80px] text-center text-sm text-slate-700">
-            {activeEntry ? `${currentItemIndex + 1} / ${activeEntry.itemCount}` : '—'}
+            {activeEntry ? `${currentItemIndex + 1} / ${activeEntry.itemCount}` : '--'}
           </span>
           <Button
             type="button"
@@ -319,7 +448,7 @@ function DatasetControlBar({
             className="h-8 w-20 text-sm"
           />
           <Button type="button" variant="secondary" size="sm" onClick={onJump} className="h-8">
-            跳
+            跳转
           </Button>
         </div>
       </div>
@@ -334,7 +463,7 @@ function DatasetControlBar({
           {currentItem?.manifestRow.canonical_id ? ` · ID: ${currentItem.manifestRow.canonical_id}` : ''}
         </span>
         <span className="flex items-center gap-3">
-          <span>已标注 {entrySavedCount} / {activeEntry?.itemCount ?? 0}</span>
+          <span>已保存 {entrySavedCount} / {activeEntry?.itemCount ?? 0}</span>
           <span>{saveLabel}</span>
           {lastSavedTime && <span>本地备份 {lastSavedTime.toLocaleTimeString()}</span>}
         </span>
@@ -343,7 +472,7 @@ function DatasetControlBar({
   );
 }
 
-// ─── Main app ─────────────────────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Main app 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 export default function Q1Q2AnnotationApp() {
   const bundleInputRef = useRef<HTMLInputElement>(null);
@@ -361,7 +490,7 @@ export default function Q1Q2AnnotationApp() {
   const [savedAnnotations, setSavedAnnotations] = useState<Record<string, SavedAnnotationEntry>>({});
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
 
-  // ─── Derived state ───────────────────────────────────────────────────────
+  // 鈹€鈹€鈹€ Derived state 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   const activeEntry =
     dataset && activeEntryId
@@ -383,6 +512,20 @@ export default function Q1Q2AnnotationApp() {
 
   const currentSavedAnnotationEntry = currentDraftKey ? savedAnnotations[currentDraftKey] : undefined;
   const currentSavedAnnotation = currentSavedAnnotationEntry?.annotation;
+  const linkedTask1DraftKey =
+    currentItem
+      ? buildAnnotationDraftKey({
+          track: 'Q1',
+          task: 'task1',
+          sessionId: currentItem.manifestRow.session_id,
+          canonicalId: currentItem.manifestRow.canonical_id,
+        })
+      : null;
+  const linkedTask1Annotation = linkedTask1DraftKey
+    ? savedAnnotations[linkedTask1DraftKey]?.annotation?.formType === 'Q1:task1'
+      ? (savedAnnotations[linkedTask1DraftKey]?.annotation as Q1Task1Annotation)
+      : null
+    : null;
 
   const entrySavedCount = activeEntry
     ? Object.values(savedAnnotations).filter(
@@ -420,7 +563,7 @@ export default function Q1Q2AnnotationApp() {
           .map((entry) => entry.ability as AbilityKey)
       : [];
 
-  // ─── Effects ─────────────────────────────────────────────────────────────
+  // 鈹€鈹€鈹€ Effects 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   useEffect(() => {
     if (!dataset) return;
@@ -482,7 +625,7 @@ export default function Q1Q2AnnotationApp() {
     return () => { isCancelled = true; };
   }, [dataset, activeEntry, currentItemIndex]);
 
-  // ─── Handlers ────────────────────────────────────────────────────────────
+  // 鈹€鈹€鈹€ Handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   const getPreferredItemIndexForEntry = (nextEntry: ManualCheckDatasetEntry): number => {
     if (!nextEntry.itemCount) return 0;
@@ -524,7 +667,7 @@ export default function Q1Q2AnnotationApp() {
       const uploadedFileIndex = buildUploadedFileIndex(files);
       const loadedDataset = await loadManualCheckDataset(uploadedFileIndex);
       applyLoadedDataset(loadedDataset);
-      toast.success(`已从 ${loadedDataset.rootName} 加载 ${loadedDataset.entries.length} 个标注视图。`);
+      toast.success(`已从 ${loadedDataset.rootName} 加载 ${loadedDataset.entries.length} 个视图。`);
       if (loadedDataset.warnings.length > 0) toast.info('数据集已加载，但包含提示信息。');
     } catch (error) {
       setDataset(null);
@@ -631,8 +774,45 @@ export default function Q1Q2AnnotationApp() {
       ability: activeEntry.ability,
       annotation,
     };
-    setSavedAnnotations((current) => ({ ...current, [currentDraftKey]: savedEntry }));
-    if (toastMessage) toast.success(toastMessage);
+    let syncedEntryCount = 0;
+
+    setSavedAnnotations((current) => {
+      const nextSavedEntries = {
+        ...current,
+        [currentDraftKey]: savedEntry,
+      };
+
+      if (
+        activeEntry.track === 'Q1' &&
+        activeEntry.task === 'task1' &&
+        annotation.formType === 'Q1:task1' &&
+        annotation.status === 'saved'
+      ) {
+        const syncResult = syncExistingQ1AnnotationsFromTask1(nextSavedEntries, savedEntry);
+        syncedEntryCount = syncResult.syncedEntryCount;
+        return syncResult.nextSavedEntries;
+      }
+
+      return nextSavedEntries;
+    });
+
+    if (toastMessage) {
+      const shouldMentionQ1Sync =
+        activeEntry.track === 'Q1' &&
+        activeEntry.task === 'task1' &&
+        annotation.formType === 'Q1:task1' &&
+        annotation.status === 'saved';
+
+      if (shouldMentionQ1Sync) {
+        const syncSummary =
+          syncedEntryCount > 0
+            ? `已同步更新 ${syncedEntryCount} 条现有的 Q1 task2-4 标注；未打开的 task2-4 页面也会使用最新的 task1 记忆。`
+            : 'Q1 task2-4 后续打开时也会使用最新的 task1 记忆。';
+        toast.success(`${toastMessage} ${syncSummary}`);
+      } else {
+        toast.success(toastMessage);
+      }
+    }
   };
 
   const handleDownloadBundles = () => {
@@ -672,7 +852,7 @@ export default function Q1Q2AnnotationApp() {
     );
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────
+  // 鈹€鈹€鈹€ Render 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -797,6 +977,7 @@ export default function Q1Q2AnnotationApp() {
                     loadedItem={currentItem}
                     evaluationMode={evaluationMode}
                     currentAnnotation={currentSavedAnnotation}
+                    linkedTask1Annotation={linkedTask1Annotation}
                     onDraftChange={(annotation) => upsertAnnotationRecord(annotation)}
                     onSave={(annotation) => upsertAnnotationRecord(annotation, '标注已保存。')}
                   />
@@ -843,3 +1024,5 @@ export default function Q1Q2AnnotationApp() {
     </div>
   );
 }
+
+

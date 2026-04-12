@@ -22,6 +22,7 @@ import {
   useAnnotationDraftSync,
   withDraftMeta,
 } from './annotationFormShell';
+import { TranslatedText } from '../display/TranslatedText';
 import { CheckboxField, RadioField, TextAreaField } from './FormFields';
 
 interface QuerySeed {
@@ -226,8 +227,12 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
                 <div className="mt-3 space-y-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">原始查询</p>
-                    <div className="mt-2 rounded-xl border border-slate-200 bg-white/80 p-3 text-sm leading-6 text-slate-800">
-                      {querySeeds.find((seed) => seed.queryId === item.queryId)?.queryText ?? item.queryText}
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-white/80 p-3">
+                      <TranslatedText
+                        text={querySeeds.find((seed) => seed.queryId === item.queryId)?.queryText ?? item.queryText}
+                        translationEnabled
+                        className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800"
+                      />
                     </div>
                   </div>
                   {isEditingQuery ||
@@ -238,6 +243,7 @@ export function Q1Task4Form({ ability, initialValue, querySeeds, onDraftChange, 
                       value={item.queryText}
                       onChange={(queryText) => updateSubAnnotation(item.queryId, { queryText })}
                       placeholder="Revise the ability query if needed."
+                      translationEnabled
                     />
                   ) : null}
                 </div>

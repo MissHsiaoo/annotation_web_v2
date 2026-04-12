@@ -3,6 +3,7 @@ import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../../components/ui/radio-group';
 import { Textarea } from '../../../components/ui/textarea';
+import { TranslatedText } from '../display/TranslatedText';
 
 interface RadioOption {
   value: string;
@@ -97,9 +98,18 @@ interface TextAreaFieldProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  translationEnabled?: boolean;
+  translationSourceText?: string;
 }
 
-export function TextAreaField({ label, value, onChange, placeholder }: TextAreaFieldProps) {
+export function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  translationEnabled = false,
+  translationSourceText,
+}: TextAreaFieldProps) {
   return (
     <div className="space-y-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm ring-1 ring-slate-200/20">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
@@ -107,8 +117,11 @@ export function TextAreaField({ label, value, onChange, placeholder }: TextAreaF
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-24 rounded-xl border-slate-300 bg-white"
+        className="min-h-24 rounded-xl border-slate-300 bg-white select-text"
       />
+      {translationEnabled && (translationSourceText ?? value).trim() ? (
+        <TranslatedText text={translationSourceText ?? value} translationEnabled hideOriginal />
+      ) : null}
     </div>
   );
 }
