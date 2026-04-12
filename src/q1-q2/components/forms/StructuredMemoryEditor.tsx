@@ -146,6 +146,7 @@ interface StructuredMemoryEditorProps {
   description: string;
   memories: EditableMemoryRecord[];
   onChange: (nextMemories: EditableMemoryRecord[]) => void;
+  onActiveIndexChange?: (index: number) => void;
   addButtonLabel?: string;
   translationEnabled?: boolean;
   displayMode?: 'list' | 'carousel';
@@ -156,11 +157,20 @@ export function StructuredMemoryEditor({
   description,
   memories,
   onChange,
+  onActiveIndexChange,
   addButtonLabel = 'Add Memory',
   translationEnabled = false,
   displayMode = 'list',
 }: StructuredMemoryEditorProps) {
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
+
+  const setActiveMemoryIndexAndNotify = (updater: number | ((prev: number) => number)) => {
+    setActiveMemoryIndex((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      onActiveIndexChange?.(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     setActiveMemoryIndex((current) => {
@@ -189,11 +199,11 @@ export function StructuredMemoryEditor({
   };
 
   const addMemory = () => {
-    setActiveMemoryIndex(memories.length);
+    setActiveMemoryIndexAndNotify(memories.length);
     onChange([
       ...memories,
       {
-        memory_id: `new-memory-${memories.length + 1}`,
+        memory_id: `new-memory-${Date.now()}`,
         type: 'direct',
         label: 'UNMAPPED',
         label_suggestion: null,
@@ -210,22 +220,22 @@ export function StructuredMemoryEditor({
   };
 
   const renderMemoryEditor = (memory: EditableMemoryRecord, memoryIndex: number) => (
-    <div key={`${String(memory.memory_id ?? 'memory')}-${memoryIndex}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
+    <div key={`${String(memory.memory_id ?? 'memory')}-${memoryIndex}`} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <Badge variant="outline" className="border-slate-300 bg-slate-100 text-xs text-slate-700">
             {String(memory.memory_id ?? `memory-${memoryIndex + 1}`)}
           </Badge>
-          <Badge variant="outline" className="border-slate-300 bg-white text-slate-600">
+          <Badge variant="outline" className="border-slate-200 bg-white text-xs text-slate-500">
             {String(memory.label ?? 'Label Missing')}
           </Badge>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => removeMemory(memoryIndex)}>
+        <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-xs" onClick={() => removeMemory(memoryIndex)}>
           Remove
         </Button>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {getFieldOrder(memory).map((field) => {
           const value = memory[field];
           const formattedValue = formatFieldValue(value);
@@ -276,29 +286,31 @@ export function StructuredMemoryEditor({
         <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {displayMode === 'carousel' && memories.length > 1 ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-500">
+          <div className="flex items-center justify-between gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setActiveMemoryIndex((current) => Math.max(current - 1, 0))}
+              className="h-7 px-2 text-xs"
+              onClick={() => setActiveMemoryIndexAndNotify((current) => Math.max(current - 1, 0))}
               disabled={activeMemoryIndex === 0}
             >
-              Previous
+              ‹ Prev
             </Button>
-            <Badge variant="outline" className="border-slate-300 bg-white text-slate-600">
+            <Badge variant="outline" className="border-slate-300 bg-white text-xs text-slate-600">
               {activeMemoryIndex + 1} / {memories.length}
             </Badge>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setActiveMemoryIndex((current) => Math.min(current + 1, memories.length - 1))}
+              className="h-7 px-2 text-xs"
+              onClick={() => setActiveMemoryIndexAndNotify((current) => Math.min(current + 1, memories.length - 1))}
               disabled={activeMemoryIndex >= memories.length - 1}
             >
-              Next
+              Next ›
             </Button>
           </div>
         ) : null}

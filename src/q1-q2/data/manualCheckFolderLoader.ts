@@ -313,6 +313,19 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
+function resolveMemoryById(
+  pool: unknown[],
+  id: string | null,
+  fallback: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!id) return fallback;
+  for (const item of pool) {
+    const record = asRecord(item);
+    if (record && record.memory_id === id) return { ...record };
+  }
+  return fallback;
+}
+
 function getTask4RecordCanonicalId(
   sessionId: string,
   ability: AbilityKey,
@@ -482,7 +495,16 @@ function normalizeSessionPacketItem(
       source_format: 'task123_session_packet',
       original: {
         query: task3?.query ?? '',
-        selected_memory: task3?.task3_selected_memory ?? null,
+        selected_memory: (() => {
+          const stub = asRecord(task3?.task3_selected_memory);
+          if (!stub) return null;
+          const id =
+            (typeof task3?.task3_selected_memory_id === 'string' && task3.task3_selected_memory_id) ||
+            (typeof stub.memory_id === 'string' && stub.memory_id) ||
+            null;
+          const pool = Array.isArray(task1?.ground_truth_memories) ? task1.ground_truth_memories : [];
+          return resolveMemoryById(pool, id, stub);
+        })(),
         candidate_memories: Array.isArray(task3?.candidate_memories) ? task3.candidate_memories : [],
         metadata: task3?.metadata ?? null,
       },
@@ -506,12 +528,15 @@ function normalizeSessionPacketItem(
           ? indexedTask4Records.filter((item) => item.record.ability === ability)
           : indexedTask4Records;
     const firstTask4Record = selectedTask4Records[0]?.record ?? null;
-    const selectedMemory = asRecord(firstTask4Record?.task4_selected_memory);
+    const selectedMemoryStub = asRecord(firstTask4Record?.task4_selected_memory);
     const selectedMemoryId =
       (typeof firstTask4Record?.task4_selected_memory_id === 'string' && firstTask4Record.task4_selected_memory_id) ||
-      (typeof selectedMemory?.memory_id === 'string' && selectedMemory.memory_id) ||
+      (typeof selectedMemoryStub?.memory_id === 'string' && selectedMemoryStub.memory_id) ||
       null;
     const candidateMemories = Array.isArray(task1?.ground_truth_memories) ? task1.ground_truth_memories : [];
+    const selectedMemory = selectedMemoryStub
+      ? resolveMemoryById(candidateMemories, selectedMemoryId, selectedMemoryStub)
+      : null;
     const flattenedQueries = selectedTask4Records.flatMap(({ record, recordIndex }) => {
       const recordAbility = record.ability as AbilityKey | undefined;
       const recordSelectedMemory = asRecord(record.task4_selected_memory);
@@ -529,6 +554,10 @@ function normalizeSessionPacketItem(
           return [];
         }
 
+        const resolvedRecordMemory = recordSelectedMemory
+          ? resolveMemoryById(candidateMemories, recordSelectedMemoryId, recordSelectedMemory)
+          : null;
+
         return [
           {
             ...queryRecord,
@@ -539,13 +568,21 @@ function normalizeSessionPacketItem(
             ability: recordAbility,
             task4_record_index: recordIndex,
             task4_selected_memory_id: recordSelectedMemoryId,
-            task4_selected_memory: recordSelectedMemory,
+            task4_selected_memory: resolvedRecordMemory,
           },
         ];
       });
     });
     const selectedMemories = selectedTask4Records
-      .map(({ record }) => asRecord(record.task4_selected_memory))
+      .map(({ record }) => {
+        const stub = asRecord(record.task4_selected_memory);
+        if (!stub) return null;
+        const id =
+          (typeof record.task4_selected_memory_id === 'string' && record.task4_selected_memory_id) ||
+          (typeof stub.memory_id === 'string' && stub.memory_id) ||
+          null;
+        return resolveMemoryById(candidateMemories, id, stub);
+      })
       .filter(Boolean) as Record<string, unknown>[];
 
     return {

@@ -54,7 +54,7 @@ function createEmptyAnnotation(goldMemorySeed: EditableMemoryRecord[]): Q1Task1A
 function mergeSeeds(goldMemorySeed: EditableMemoryRecord[], existing?: Q1Task1Annotation): Q1Task1Annotation {
   const fallback = existing ?? createEmptyAnnotation(goldMemorySeed);
 
-  if (fallback.editableGoldMemories?.length) {
+  if (fallback.editableGoldMemories !== undefined) {
     return fallback;
   }
 

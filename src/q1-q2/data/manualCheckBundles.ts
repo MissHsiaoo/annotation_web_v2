@@ -58,7 +58,7 @@ export function buildAnnotationExportBundle(
   };
 }
 
-function applyDirectAnnotationEdits(
+export function applyDirectAnnotationEdits(
   itemData: Record<string, unknown>,
   annotation?: AnySupportedAnnotation,
 ): Record<string, unknown> {
@@ -104,8 +104,8 @@ function applyDirectAnnotationEdits(
 
   if (annotation.formType === 'Q1:task4') {
     if (Array.isArray(original.queries)) {
-      const queryEditsById = new Map(
-        annotation.subAnnotations.map((item) => [item.queryId, item.queryText]),
+      const subAnnotationById = new Map(
+        annotation.subAnnotations.map((item) => [item.queryId, item]),
       );
 
       original.queries = original.queries.map((item: unknown, index: number) => {
@@ -117,14 +117,23 @@ function applyDirectAnnotationEdits(
           typeof record.query_id === 'string' && record.query_id.trim()
             ? record.query_id
             : `query-${index + 1}`;
-        const editedQuery = queryEditsById.get(queryId);
+        const subAnnotation = subAnnotationById.get(queryId);
 
-        return editedQuery?.trim()
-          ? {
-              ...record,
-              query: editedQuery,
-            }
-          : record;
+        if (!subAnnotation) return record;
+
+        const next: Record<string, unknown> = { ...record };
+        if (subAnnotation.queryText?.trim()) {
+          next.query = subAnnotation.queryText;
+        }
+        if (subAnnotation.editableSelectedMemory) {
+          next.task4_selected_memory = subAnnotation.editableSelectedMemory;
+          const memId =
+            typeof subAnnotation.editableSelectedMemory.memory_id === 'string'
+              ? subAnnotation.editableSelectedMemory.memory_id
+              : null;
+          if (memId) next.task4_selected_memory_id = memId;
+        }
+        return next;
       });
     }
 

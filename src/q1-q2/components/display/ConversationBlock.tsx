@@ -29,58 +29,62 @@ export function ConversationBlock({
   turns,
   translationEnabled = false,
 }: ConversationBlockProps) {
-  if (turns.length === 0) {
-    return null;
-  }
+  if (turns.length === 0) return null;
 
   return (
     <Card className={sampleBlockCardClass}>
       <CardHeader className={sampleBlockHeaderClass}>
-        <CardTitle className="text-base text-slate-900">{title}</CardTitle>
-        {description ? <CardDescription className="text-slate-600">{description}</CardDescription> : null}
+        <CardTitle className="text-sm font-semibold text-slate-900">{title}</CardTitle>
+        {description ? (
+          <CardDescription className="mt-0.5 text-xs text-slate-500">{description}</CardDescription>
+        ) : null}
       </CardHeader>
-      <CardContent className={`max-h-[720px] overflow-y-auto ${sampleBlockContentClass}`}>
-        <div className="mx-auto max-w-[1040px] space-y-4">
-        {turns.map((turn, index) => {
-          const isUser = turn.role === 'user';
-
-          return (
-            <div key={`${turn.role}-${index}`} className={`flex gap-3 ${isUser ? 'justify-start' : 'justify-end'}`}>
-              {isUser ? (
-                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                  <User className="h-4 w-4 text-blue-600" />
-                </div>
-              ) : null}
-
+      <CardContent className={`max-h-[640px] overflow-y-auto ${sampleBlockContentClass}`}>
+        <div className="space-y-3">
+          {turns.map((turn, index) => {
+            const isUser = turn.role === 'user';
+            return (
               <div
-                className={`max-w-[78%] min-w-0 rounded-2xl border p-4 shadow-sm ${
-                  isUser ? 'border-blue-200 bg-blue-50/80' : 'border-emerald-200 bg-emerald-50/80'
-                }`}
+                key={`${turn.role}-${index}`}
+                className={`flex gap-2.5 ${isUser ? 'justify-start' : 'justify-end'}`}
               >
-                <div className="mb-3 flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={
-                      isUser
-                        ? 'border-blue-300 bg-blue-100 text-blue-700'
-                        : 'border-emerald-300 bg-emerald-100 text-emerald-700'
-                    }
-                  >
-                    {isUser ? '用户' : '助手'}
-                  </Badge>
-                  <span className="text-xs text-slate-400">第 {index + 1} 轮</span>
-                </div>
-                <TranslatedText text={turn.text} translationEnabled={translationEnabled} />
-              </div>
+                {isUser ? (
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                    <User className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                ) : null}
 
-              {!isUser ? (
-                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                  <Bot className="h-4 w-4 text-emerald-600" />
+                <div
+                  className={`min-w-0 max-w-[80%] rounded-xl border p-3 shadow-sm ${
+                    isUser
+                      ? 'border-blue-200 bg-blue-50/80'
+                      : 'border-emerald-200 bg-emerald-50/80'
+                  }`}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={
+                        isUser
+                          ? 'border-blue-300 bg-blue-100 text-xs text-blue-700'
+                          : 'border-emerald-300 bg-emerald-100 text-xs text-emerald-700'
+                      }
+                    >
+                      {isUser ? '用户' : '助手'}
+                    </Badge>
+                    <span className="text-xs text-slate-400">第 {index + 1} 轮</span>
+                  </div>
+                  <TranslatedText text={turn.text} translationEnabled={translationEnabled} />
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
+
+                {!isUser ? (
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <Bot className="h-3.5 w-3.5 text-emerald-600" />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

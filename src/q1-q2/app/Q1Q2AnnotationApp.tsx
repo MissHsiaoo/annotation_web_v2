@@ -34,6 +34,7 @@ import { TaskSampleDisplay } from '../components/display/TaskSampleDisplay';
 import { buildUploadedFileIndex } from '../data/indexers/buildUploadedFileIndex';
 import {
   buildAnnotationExportBundle,
+  applyDirectAnnotationEdits,
   buildAnnotationStorageKey,
   createDatasetFromMergedBundle,
   formatTimestampForFilename,
@@ -203,9 +204,20 @@ function syncExistingQ1AnnotationsFromTask1(
       }
 
       if (entry.annotation.formType === 'Q1:task2') {
+        const goldById = new Map(
+          goldMemories
+            .filter((m) => typeof m.memory_id === 'string' && (m.memory_id as string).trim())
+            .map((m) => [m.memory_id as string, m]),
+        );
+        const syncedMemories = entry.annotation.editableUpdatedMemories.map((mem) => {
+          const id = typeof mem.memory_id === 'string' ? mem.memory_id : null;
+          const gold = id ? goldById.get(id) : undefined;
+          if (!gold) return mem;
+          return { ...mem, memory_id: gold.memory_id, value: gold.value };
+        });
         const nextAnnotation: Q1Task2Annotation = {
           ...entry.annotation,
-          editableUpdatedMemories: cloneMemoryRecords(goldMemories),
+          editableUpdatedMemories: cloneMemoryRecords(syncedMemories as Array<Record<string, unknown>>),
           updatedAt: timestamp,
         };
         syncedEntryCount += 1;
@@ -274,23 +286,23 @@ function AppHeader({
   onDownloadCurrentItem,
 }: AppHeaderProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900">Alps 标注工作台</h1>
+    <div className="flex min-h-[48px] items-center justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="truncate text-base font-semibold text-slate-900">Alps 标注工作台</h1>
         {dataset ? (
-          <p className="mt-0.5 text-sm text-slate-500">
+          <p className="truncate text-xs text-slate-500">
             {dataset.rootName} · {dataset.entries.length} 个视图
           </p>
         ) : (
-          <p className="mt-0.5 text-sm text-slate-500">导入数据集后开始标注。</p>
+          <p className="text-xs text-slate-500">导入数据集后开始标注。</p>
         )}
       </div>
 
       {dataset && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button type="button" variant="outline" size="sm" onClick={onReset} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" />
-            重新导入
+            <span className="hidden sm:inline">重新导入</span>
           </Button>
           <Button
             type="button"
@@ -301,7 +313,7 @@ function AppHeader({
             className="gap-1.5"
           >
             <FileJson className="h-3.5 w-3.5" />
-            导入标注
+            <span className="hidden sm:inline">导入标注</span>
           </Button>
           <Button
             type="button"
@@ -311,7 +323,7 @@ function AppHeader({
             className="gap-1.5"
           >
             <Archive className="h-3.5 w-3.5" />
-            导出标注
+            <span className="hidden sm:inline">导出标注</span>
           </Button>
           <Button
             type="button"
@@ -322,7 +334,7 @@ function AppHeader({
             className="gap-1.5"
           >
             <ArrowDownToLine className="h-3.5 w-3.5" />
-            导出当前
+            <span className="hidden sm:inline">导出当前</span>
           </Button>
         </div>
       )}
@@ -379,45 +391,49 @@ function DatasetControlBar({
     : '未保存';
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      {/* Row 1: Selectors + navigation */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={activeEntry?.track} onValueChange={onTrackChange}>
-          <SelectTrigger className="h-8 w-[160px] text-sm">
-            <SelectValue placeholder="数据类型" />
-          </SelectTrigger>
-          <SelectContent>
-            {trackOptions.map((track) => (
-              <SelectItem key={track} value={track}>{TRACK_LABELS[track]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={activeEntry?.task} onValueChange={onTaskChange}>
-          <SelectTrigger className="h-8 w-[180px] text-sm">
-            <SelectValue placeholder="标注任务" />
-          </SelectTrigger>
-          <SelectContent>
-            {taskOptions.map((task) => (
-              <SelectItem key={task} value={task}>{TASK_LABELS[task]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {activeEntry?.task === 'task4' && (
-          <Select value={activeEntry?.ability ?? ''} onValueChange={onAbilityChange}>
-            <SelectTrigger className="h-8 w-[120px] text-sm">
-              <SelectValue placeholder="能力维度" />
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* Row 1: Selectors (left) + Navigation (right) — never wraps */}
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3">
+        {/* Selectors — allowed to wrap among themselves */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={activeEntry?.track} onValueChange={onTrackChange}>
+            <SelectTrigger className="h-8 w-[160px] text-sm">
+              <SelectValue placeholder="数据类型" />
             </SelectTrigger>
             <SelectContent>
-              {abilityOptions.map((ability) => (
-                <SelectItem key={ability} value={ability}>{ABILITY_LABELS[ability]}</SelectItem>
+              {trackOptions.map((track) => (
+                <SelectItem key={track} value={track}>{TRACK_LABELS[track]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        )}
 
-        <div className="ml-auto flex items-center gap-2">
+          <Select value={activeEntry?.task} onValueChange={onTaskChange}>
+            <SelectTrigger className="h-8 w-[180px] text-sm">
+              <SelectValue placeholder="标注任务" />
+            </SelectTrigger>
+            <SelectContent>
+              {taskOptions.map((task) => (
+                <SelectItem key={task} value={task}>{TASK_LABELS[task]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {activeEntry?.task === 'task4' && (
+            <Select value={activeEntry?.ability ?? ''} onValueChange={onAbilityChange}>
+              <SelectTrigger className="h-8 w-[120px] text-sm">
+                <SelectValue placeholder="能力维度" />
+              </SelectTrigger>
+              <SelectContent>
+                {abilityOptions.map((ability) => (
+                  <SelectItem key={ability} value={ability}>{ABILITY_LABELS[ability]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Navigation — shrink-0 keeps it on same line always */}
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button
             type="button"
             variant="outline"
@@ -428,7 +444,7 @@ function DatasetControlBar({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-[80px] text-center text-sm text-slate-700">
+          <span className="w-[72px] text-center text-sm tabular-nums text-slate-700">
             {activeEntry ? `${currentItemIndex + 1} / ${activeEntry.itemCount}` : '--'}
           </span>
           <Button
@@ -445,28 +461,30 @@ function DatasetControlBar({
             onChange={(e) => onJumpInputChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') onJump(); }}
             placeholder="跳转"
-            className="h-8 w-20 text-sm"
+            className="h-8 w-16 text-center text-sm"
           />
-          <Button type="button" variant="secondary" size="sm" onClick={onJump} className="h-8">
-            跳转
+          <Button type="button" variant="secondary" size="sm" onClick={onJump} className="h-8 px-3">
+            Go
           </Button>
         </div>
       </div>
 
       {/* Row 2: Progress + meta */}
-      <Progress value={progressPercent} className="mt-3 h-1 bg-slate-100 [&>div]:bg-slate-700" />
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-400">
-        <span>
-          {currentItem?.manifestRow.session_id
-            ? `Session: ${currentItem.manifestRow.session_id}`
-            : dataset.rootName}
-          {currentItem?.manifestRow.canonical_id ? ` · ID: ${currentItem.manifestRow.canonical_id}` : ''}
-        </span>
-        <span className="flex items-center gap-3">
-          <span>已保存 {entrySavedCount} / {activeEntry?.itemCount ?? 0}</span>
-          <span>{saveLabel}</span>
-          {lastSavedTime && <span>本地备份 {lastSavedTime.toLocaleTimeString()}</span>}
-        </span>
+      <div className="border-t border-slate-100 px-4 pb-3 pt-2">
+        <Progress value={progressPercent} className="h-1 bg-slate-100 [&>div]:bg-slate-600" />
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 text-xs text-slate-400">
+          <span className="truncate">
+            {currentItem?.manifestRow.session_id
+              ? `Session: ${currentItem.manifestRow.session_id}`
+              : dataset.rootName}
+            {currentItem?.manifestRow.canonical_id ? ` · ID: ${currentItem.manifestRow.canonical_id}` : ''}
+          </span>
+          <span className="flex shrink-0 items-center gap-3">
+            <span>已保存 {entrySavedCount} / {activeEntry?.itemCount ?? 0}</span>
+            <span>{saveLabel}</span>
+            {lastSavedTime && <span className="hidden sm:inline">备份 {lastSavedTime.toLocaleTimeString()}</span>}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -774,36 +792,28 @@ export default function Q1Q2AnnotationApp() {
       ability: activeEntry.ability,
       annotation,
     };
+    const isQ1Task1Save =
+      activeEntry.track === 'Q1' &&
+      activeEntry.task === 'task1' &&
+      annotation.formType === 'Q1:task1' &&
+      annotation.status === 'saved';
+
     let syncedEntryCount = 0;
 
-    setSavedAnnotations((current) => {
-      const nextSavedEntries = {
-        ...current,
-        [currentDraftKey]: savedEntry,
-      };
-
-      if (
-        activeEntry.track === 'Q1' &&
-        activeEntry.task === 'task1' &&
-        annotation.formType === 'Q1:task1' &&
-        annotation.status === 'saved'
-      ) {
-        const syncResult = syncExistingQ1AnnotationsFromTask1(nextSavedEntries, savedEntry);
-        syncedEntryCount = syncResult.syncedEntryCount;
-        return syncResult.nextSavedEntries;
-      }
-
-      return nextSavedEntries;
-    });
+    if (isQ1Task1Save) {
+      // Compute the sync result synchronously so syncedEntryCount is available
+      // before the toast fires. Using savedAnnotations from the closure is safe
+      // here because this runs in a user-event handler with no pending batched updates.
+      const baseEntries = { ...savedAnnotations, [currentDraftKey]: savedEntry };
+      const syncResult = syncExistingQ1AnnotationsFromTask1(baseEntries, savedEntry);
+      syncedEntryCount = syncResult.syncedEntryCount;
+      setSavedAnnotations(syncResult.nextSavedEntries);
+    } else {
+      setSavedAnnotations((current) => ({ ...current, [currentDraftKey]: savedEntry }));
+    }
 
     if (toastMessage) {
-      const shouldMentionQ1Sync =
-        activeEntry.track === 'Q1' &&
-        activeEntry.task === 'task1' &&
-        annotation.formType === 'Q1:task1' &&
-        annotation.status === 'saved';
-
-      if (shouldMentionQ1Sync) {
+      if (isQ1Task1Save) {
         const syncSummary =
           syncedEntryCount > 0
             ? `已同步更新 ${syncedEntryCount} 条现有的 Q1 task2-4 标注；未打开的 task2-4 页面也会使用最新的 task1 记忆。`
@@ -845,9 +855,7 @@ export default function Q1Q2AnnotationApp() {
   const handleDownloadCurrentItem = () => {
     if (!currentItem) return;
     downloadJson(
-      currentSavedAnnotation
-        ? { ...currentItem.itemData, workbench_annotation: currentSavedAnnotation }
-        : currentItem.itemData,
+      applyDirectAnnotationEdits(currentItem.itemData, currentSavedAnnotation),
       `${currentItem.entry.track}-${currentItem.entry.task}-${currentItem.manifestRow.session_id}-${currentItem.manifestRow.canonical_id}-${formatTimestampForFilename()}.json`,
     );
   };
@@ -869,20 +877,26 @@ export default function Q1Q2AnnotationApp() {
         }}
       />
 
-      <div className="mx-auto max-w-[1680px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        <AppHeader
-          dataset={dataset}
-          savedAnnotations={savedAnnotations}
-          currentItem={currentItem}
-          isImporting={isImporting}
-          onReset={handleReset}
-          onBundleImportClick={() => bundleInputRef.current?.click()}
-          onDownloadBundles={handleDownloadBundles}
-          onDownloadCurrentItem={handleDownloadCurrentItem}
-        />
+      {/* ── Sticky top bar ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-sm">
+        <div className="mx-auto max-w-[1680px] px-4 py-2 sm:px-6 lg:px-8">
+          <AppHeader
+            dataset={dataset}
+            savedAnnotations={savedAnnotations}
+            currentItem={currentItem}
+            isImporting={isImporting}
+            onReset={handleReset}
+            onBundleImportClick={() => bundleInputRef.current?.click()}
+            onDownloadBundles={handleDownloadBundles}
+            onDownloadCurrentItem={handleDownloadCurrentItem}
+          />
+        </div>
+      </header>
 
+      {/* ── Scrollable content ─────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1680px] space-y-4 px-4 py-5 sm:px-6 lg:px-8">
         {!dataset ? (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
             <FileSourceSelector
               onFolderSelected={handleDatasetImport}
               onBundleSelected={handleBundleImport}
@@ -903,7 +917,7 @@ export default function Q1Q2AnnotationApp() {
             </Card>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <DatasetControlBar
               dataset={dataset}
               activeEntry={activeEntry}
@@ -951,8 +965,8 @@ export default function Q1Q2AnnotationApp() {
             <div
               className={
                 showRightAnnotationColumn
-                  ? 'grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)] lg:gap-6'
-                  : 'space-y-5'
+                  ? 'grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)]'
+                  : ''
               }
             >
               {/* Left / main content */}
@@ -961,14 +975,13 @@ export default function Q1Q2AnnotationApp() {
                   <Card className={sampleBlockCardClass}>
                     <CardHeader className={sampleBlockHeaderClass}>
                       <CardTitle className="flex items-center gap-2 text-base font-medium text-slate-700">
-                        <FileJson className="h-4 w-4 text-slate-400" />
-                        样本展示
+                        <LoaderCircle className="h-4 w-4 animate-spin text-slate-400" />
+                        正在加载…
                       </CardTitle>
                     </CardHeader>
                     <CardContent className={sampleBlockContentClass}>
-                      <div className="flex min-h-[200px] items-center justify-center text-slate-400">
-                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                        正在加载...
+                      <div className="flex min-h-[160px] items-center justify-center text-sm text-slate-400">
+                        加载中，请稍候
                       </div>
                     </CardContent>
                   </Card>
@@ -990,7 +1003,7 @@ export default function Q1Q2AnnotationApp() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className={sampleBlockContentClass}>
-                      <div className="rounded-lg border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
+                      <div className="rounded-xl border border-dashed border-slate-200 py-14 text-center text-sm text-slate-400">
                         当前尚未加载样本
                       </div>
                     </CardContent>
@@ -1000,7 +1013,7 @@ export default function Q1Q2AnnotationApp() {
 
               {/* Right column: requirement + annotation form (Q2 only) */}
               {showRightAnnotationColumn && (
-                <div className="min-w-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                <div className="min-w-0 space-y-4 lg:sticky lg:top-[69px] lg:max-h-[calc(100vh-85px)] lg:overflow-y-auto">
                   {requirement && <TaskRequirementPanel requirement={requirement} />}
                   {requirement && activeEntry && <Separator className="bg-slate-200" />}
                   {activeEntry && (

@@ -62,21 +62,11 @@ function mergeSeeds(
 ): Q1Task2Annotation {
   const fallback = existing ?? createEmptyAnnotation(newDialogueSeed, updatedMemorySeed);
 
-  if (fallback.editableUpdatedMemories.length) {
-    return {
-      ...fallback,
-      editableNewDialogue: fallback.editableNewDialogue.length
-        ? fallback.editableNewDialogue
-        : newDialogueSeed.map((item) => ({ ...item })),
-    };
-  }
-
   return {
     ...fallback,
     editableNewDialogue: fallback.editableNewDialogue.length
       ? fallback.editableNewDialogue
       : newDialogueSeed.map((item) => ({ ...item })),
-    editableUpdatedMemories: updatedMemorySeed.map(cloneMemoryRecord),
   };
 }
 
