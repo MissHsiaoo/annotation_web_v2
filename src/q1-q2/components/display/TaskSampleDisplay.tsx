@@ -901,6 +901,7 @@ export function TaskSampleDisplay({
               description="Current memories before applying the update."
               items={task2DisplayedMemories}
               activeIndex={task2CarouselIndex}
+              onActiveIndexChange={setTask2CarouselIndex}
               displayMode="carousel"
               translationEnabled={translationEnabled}
             />

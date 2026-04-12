@@ -172,31 +172,37 @@ export function MemoryListBlock({
             </Badge>
             {displayMode === 'carousel' && filteredItems.length > 0 ? (
               <>
-                {activeIndex === undefined ? (
-                  <button
-                    type="button"
-                    onClick={() => setInternalActiveItemIndexAndNotify((c) => Math.max(c - 1, 0))}
-                    disabled={activeItemIndex === 0}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ‹
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeIndex !== undefined) {
+                      onActiveIndexChange?.(Math.max(activeItemIndex - 1, 0));
+                    } else {
+                      setInternalActiveItemIndexAndNotify((c) => Math.max(c - 1, 0));
+                    }
+                  }}
+                  disabled={activeItemIndex === 0}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹
+                </button>
                 <span className="min-w-[36px] text-center text-xs tabular-nums text-slate-500">
                   {activeItemIndex + 1}/{filteredItems.length}
                 </span>
-                {activeIndex === undefined ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setInternalActiveItemIndexAndNotify((c) => Math.min(c + 1, filteredItems.length - 1))
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeIndex !== undefined) {
+                      onActiveIndexChange?.(Math.min(activeItemIndex + 1, filteredItems.length - 1));
+                    } else {
+                      setInternalActiveItemIndexAndNotify((c) => Math.min(c + 1, filteredItems.length - 1));
                     }
-                    disabled={activeItemIndex >= filteredItems.length - 1}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ›
-                  </button>
-                ) : null}
+                  }}
+                  disabled={activeItemIndex >= filteredItems.length - 1}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ›
+                </button>
               </>
             ) : null}
             {collapsible ? (
