@@ -1,7 +1,18 @@
 ﻿import { useEffect, useState, type ReactNode } from 'react';
 import { Languages } from 'lucide-react';
 
-import { Button } from '../../../components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/alert-dialog';
+import { Badge } from '../../../components/ui/badge';
+import { Button, buttonVariants } from '../../../components/ui/button';
 import {
   Card,
   CardContent,
@@ -9,6 +20,13 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/dialog';
 import type {
   AnySupportedAnnotation,
   AbilityKey,
@@ -706,6 +724,64 @@ function IntegratedSaveBar({
   );
 }
 
+function MemoryPickerDialog({
+  open,
+  onOpenChange,
+  memories,
+  onSelect,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  memories: EditableMemoryRecord[];
+  onSelect: (memory: EditableMemoryRecord) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Select a New Memory</DialogTitle>
+          <DialogDescription>
+            Choose a memory from the list below to replace the current selected memory.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+          {memories.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-500">No memories available.</p>
+          ) : null}
+          {memories.map((mem, index) => (
+            <div
+              key={String(mem.memory_id ?? index)}
+              className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"
+            >
+              <div className="min-w-0 space-y-1">
+                <p className="truncate font-mono text-xs font-medium text-slate-700">
+                  {String(mem.memory_id ?? `memory-${index + 1}`)}
+                </p>
+                <p className="line-clamp-2 text-xs text-slate-500">
+                  {String(mem.value ?? '').slice(0, 150)}
+                  {String(mem.value ?? '').length > 150 ? '…' : ''}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => {
+                  onSelect(cloneMemoryRecord(mem));
+                  onOpenChange(false);
+                }}
+              >
+                Select
+              </Button>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function TaskSampleDisplay({
   loadedItem,
   evaluationMode,
@@ -722,6 +798,10 @@ export function TaskSampleDisplay({
   const [activeTask1ModelIndex, setActiveTask1ModelIndex] = useState(0);
   const [activeTask4QueryIndex, setActiveTask4QueryIndex] = useState(0);
   const [task1CopyWarning, setTask1CopyWarning] = useState('');
+  const [task3PickerOpen, setTask3PickerOpen] = useState(false);
+  const [task3PendingMemory, setTask3PendingMemory] = useState<EditableMemoryRecord | null>(null);
+  const [task4PickerOpen, setTask4PickerOpen] = useState(false);
+  const [task4PendingMemory, setTask4PendingMemory] = useState<EditableMemoryRecord | null>(null);
   // Sync annotation state whenever the prop changes (draft saves, bundle imports).
   useEffect(() => {
     setIntegratedAnnotation(currentAnnotation);
@@ -1010,21 +1090,39 @@ export function TaskSampleDisplay({
           ? validateMemoryRecords([task3Annotation.editableSelectedMemory])
           : null;
       };
+      const originalTask3Query = asString(original.query) ?? '';
+      const isDefaultTask3Query = task3Annotation.queryText === originalTask3Query;
+      const defaultTask3MemoryId = task3SelectedMemorySeed?.memory_id;
+      const isDefaultTask3Memory =
+        task3Annotation.editableSelectedMemory?.memory_id === defaultTask3MemoryId;
+      const task3PickerMemories =
+        linkedGoldMemories.length > 0 ? linkedGoldMemories : task3CandidateMemories;
 
       return (
+        <>
         <ThreeColumnTaskLayout>
           <TaskColumn
             step="1"
             title="Golden Query"
             helper="Edit the final query directly in this panel."
           >
-            <TextAreaField
-              label="Golden Query"
-              value={task3Annotation.queryText}
-              onChange={(queryText) => updateIntegratedAnnotation(markDraft(task3Annotation, { queryText }))}
-              placeholder="Enter the final query to keep."
-              translationEnabled={translationEnabled}
-            />
+            <div className="space-y-2">
+              {isDefaultTask3Query ? (
+                <div className="flex items-center gap-2 px-1">
+                  <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-500 text-[10px]">
+                    default
+                  </Badge>
+                  <span className="text-xs text-slate-400">Query unchanged from original</span>
+                </div>
+              ) : null}
+              <TextAreaField
+                label="Golden Query"
+                value={task3Annotation.queryText}
+                onChange={(queryText) => updateIntegratedAnnotation(markDraft(task3Annotation, { queryText }))}
+                placeholder="Enter the final query to keep."
+                translationEnabled={translationEnabled}
+              />
+            </div>
           </TaskColumn>
           <TaskColumn
             step="2"
@@ -1043,8 +1141,28 @@ export function TaskSampleDisplay({
           <TaskColumn
             step="3"
             title="Selected Memory"
-            helper="Edit the final selected memory directly here."
+            helper="Edit the final selected memory directly here, or swap it using Change Memory."
           >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {isDefaultTask3Memory ? (
+                  <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-500 text-[10px]">
+                    default
+                  </Badge>
+                ) : null}
+                <span className="text-xs text-slate-500">
+                  {task3Annotation.editableSelectedMemory?.memory_id ?? 'No memory selected'}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setTask3PickerOpen(true)}
+              >
+                Change Memory
+              </Button>
+            </div>
             {task3Annotation.editableSelectedMemory ? (
               <StructuredMemoryEditor
                 title="Selected Memory Editor"
@@ -1067,6 +1185,63 @@ export function TaskSampleDisplay({
             />
           </TaskColumn>
         </ThreeColumnTaskLayout>
+        <MemoryPickerDialog
+          open={task3PickerOpen}
+          onOpenChange={setTask3PickerOpen}
+          memories={task3PickerMemories}
+          onSelect={(picked) => setTask3PendingMemory(picked)}
+        />
+        <AlertDialog
+          open={task3PendingMemory !== null}
+          onOpenChange={(open) => { if (!open) setTask3PendingMemory(null); }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Update Selected Memory</AlertDialogTitle>
+              <AlertDialogDescription>
+                You selected memory{' '}
+                <span className="font-mono font-semibold text-slate-800">
+                  {task3PendingMemory?.memory_id}
+                </span>
+                . What should happen to the current query?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setTask3PendingMemory(null)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (task3PendingMemory) {
+                    updateIntegratedAnnotation(
+                      markDraft(task3Annotation, { editableSelectedMemory: task3PendingMemory }),
+                    );
+                  }
+                  setTask3PendingMemory(null);
+                }}
+              >
+                Keep Query
+              </AlertDialogAction>
+              <AlertDialogAction
+                className={buttonVariants({ variant: 'destructive' })}
+                onClick={() => {
+                  if (task3PendingMemory) {
+                    updateIntegratedAnnotation(
+                      markDraft(task3Annotation, {
+                        editableSelectedMemory: task3PendingMemory,
+                        queryText: '',
+                      }),
+                    );
+                  }
+                  setTask3PendingMemory(null);
+                }}
+              >
+                Clear Query
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        </>
       );
     }
 
@@ -1106,6 +1281,13 @@ export function TaskSampleDisplay({
       const otherCandidateMemories = candidateMemories.filter(
         (memory) => !selectedMemoryIds.has(String(memory.memory_id ?? '')),
       );
+      const activeQuerySeed =
+        querySeeds.find((s) => s.queryId === activeTask4SubAnnotation?.queryId) ?? null;
+      const defaultTask4MemoryId = activeQuerySeed?.selectedMemorySeed?.memory_id;
+      const isDefaultTask4Memory =
+        activeTask4SubAnnotation?.editableSelectedMemory?.memory_id === defaultTask4MemoryId;
+      const task4PickerMemories =
+        linkedGoldMemories.length > 0 ? linkedGoldMemories : candidateMemories;
       const updateTask4SubAnnotation = (
         queryId: string,
         patch: Partial<Q1Task4SubAnnotation>,
@@ -1154,6 +1336,7 @@ export function TaskSampleDisplay({
       };
 
       return (
+        <>
         <ThreeColumnTaskLayout>
           <TaskColumn
             step="1"
@@ -1172,30 +1355,53 @@ export function TaskSampleDisplay({
             helper="Check whether the selected memory is the right support for the current ability queries."
           >
             {activeTask4SubAnnotation ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-medium text-slate-500">
-                  Selected memory for query
-                </p>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <button
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-xs font-medium text-slate-500 shrink-0">
+                      Query
+                    </p>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTask4QueryIndex((i) => Math.max(i - 1, 0))}
+                        disabled={clampedTask4QueryIndex === 0}
+                        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ‹
+                      </button>
+                      <span className="min-w-[36px] text-center text-xs tabular-nums text-slate-500">
+                        {clampedTask4QueryIndex + 1}/{task4Annotation.subAnnotations.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTask4QueryIndex((i) => Math.min(i + 1, task4Annotation.subAnnotations.length - 1))}
+                        disabled={clampedTask4QueryIndex >= task4Annotation.subAnnotations.length - 1}
+                        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  </div>
+                  <Button
                     type="button"
-                    onClick={() => setActiveTask4QueryIndex((i) => Math.max(i - 1, 0))}
-                    disabled={clampedTask4QueryIndex === 0}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setTask4PickerOpen(true)}
                   >
-                    ‹
-                  </button>
-                  <span className="min-w-[36px] text-center text-xs tabular-nums text-slate-500">
-                    {clampedTask4QueryIndex + 1}/{task4Annotation.subAnnotations.length}
+                    Change Memory
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2 px-1">
+                  {isDefaultTask4Memory ? (
+                    <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-500 text-[10px]">
+                      default
+                    </Badge>
+                  ) : null}
+                  <span className="text-xs text-slate-400 truncate">
+                    {activeTask4SubAnnotation.editableSelectedMemory?.memory_id ?? 'No memory selected'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTask4QueryIndex((i) => Math.min(i + 1, task4Annotation.subAnnotations.length - 1))}
-                    disabled={clampedTask4QueryIndex >= task4Annotation.subAnnotations.length - 1}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ›
-                  </button>
                 </div>
               </div>
             ) : null}
@@ -1291,6 +1497,11 @@ export function TaskSampleDisplay({
                           {entry.ability}
                         </span>
                       ) : null}
+                      {item.queryText === (querySeeds.find((s) => s.queryId === item.queryId)?.queryText ?? '') ? (
+                        <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-500 text-[10px]">
+                          default
+                        </Badge>
+                      ) : null}
                     </div>
                     <TextAreaField
                       label="Ability Query"
@@ -1377,6 +1588,64 @@ export function TaskSampleDisplay({
             </div>
           </TaskColumn>
         </ThreeColumnTaskLayout>
+        <MemoryPickerDialog
+          open={task4PickerOpen}
+          onOpenChange={setTask4PickerOpen}
+          memories={task4PickerMemories}
+          onSelect={(picked) => setTask4PendingMemory(picked)}
+        />
+        <AlertDialog
+          open={task4PendingMemory !== null}
+          onOpenChange={(open) => { if (!open) setTask4PendingMemory(null); }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Update Selected Memory</AlertDialogTitle>
+              <AlertDialogDescription>
+                You selected memory{' '}
+                <span className="font-mono font-semibold text-slate-800">
+                  {task4PendingMemory?.memory_id}
+                </span>
+                {activeTask4SubAnnotation ? (
+                  <> for query <span className="font-mono font-semibold text-slate-800">{activeTask4SubAnnotation.queryId}</span></>
+                ) : null}
+                . What should happen to the current query text?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setTask4PendingMemory(null)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (task4PendingMemory && activeTask4SubAnnotation) {
+                    updateTask4SubAnnotation(activeTask4SubAnnotation.queryId, {
+                      editableSelectedMemory: task4PendingMemory,
+                    });
+                  }
+                  setTask4PendingMemory(null);
+                }}
+              >
+                Keep Query
+              </AlertDialogAction>
+              <AlertDialogAction
+                className={buttonVariants({ variant: 'destructive' })}
+                onClick={() => {
+                  if (task4PendingMemory && activeTask4SubAnnotation) {
+                    updateTask4SubAnnotation(activeTask4SubAnnotation.queryId, {
+                      editableSelectedMemory: task4PendingMemory,
+                      queryText: '',
+                    });
+                  }
+                  setTask4PendingMemory(null);
+                }}
+              >
+                Clear Query
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        </>
       );
     }
     if (entry.track === 'Q2' && entry.task === 'task1') {
