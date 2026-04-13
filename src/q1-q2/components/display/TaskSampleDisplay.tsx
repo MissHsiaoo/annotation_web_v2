@@ -430,7 +430,7 @@ function createTask3Annotation(
   if (existing?.formType === 'Q1:task3') {
     return {
       ...existing,
-      queryText: existing.queryText || querySeed,
+      queryText: existing.queryText ?? querySeed,
       editableSelectedMemory:
         existing.editableSelectedMemory ?? (selectedMemorySeed ? cloneMemoryRecord(selectedMemorySeed) : null),
     };
@@ -586,7 +586,7 @@ function createTask4Annotation(
       return existingItem
         ? {
             ...existingItem,
-            queryText: existingItem.queryText || seed.queryText,
+            queryText: existingItem.queryText ?? seed.queryText,
             ability: existingItem.ability ?? seed.ability,
             task4RecordIndex: existingItem.task4RecordIndex ?? seed.task4RecordIndex,
             editableSelectedMemory: syncSelectedMemoryWithGold(baseMemory, linkedGoldMemories),
