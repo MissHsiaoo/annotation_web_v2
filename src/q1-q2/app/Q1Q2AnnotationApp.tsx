@@ -1033,7 +1033,7 @@ export default function Q1Q2AnnotationApp() {
               };
               return (
                 <Card className="shadow-sm">
-                  <CardHeader className="border-b border-slate-100 px-4 py-2.5">
+                  <CardHeader className="border-b border-slate-100 px-4 py-1.5">
                     <CardTitle className="flex items-center justify-between text-sm font-medium text-slate-700">
                       <span className="flex items-center gap-2">
                         <History className="h-3.5 w-3.5 text-slate-400" />
@@ -1044,8 +1044,8 @@ export default function Q1Q2AnnotationApp() {
                       </Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="px-4 py-2">
-                    <ol className="space-y-1">
+                  <CardContent className="px-4 py-1.5">
+                    <ol className="space-y-0.5">
                       {visibleEntries.map((entry) => {
                         const isSaved = entry.annotation.status === 'saved';
                         const itemNum = getItemNumber(entry);
@@ -1053,16 +1053,16 @@ export default function Q1Q2AnnotationApp() {
                         return (
                           <li
                             key={entry.draftKey}
-                            className="cursor-pointer rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
+                            className="cursor-pointer rounded-md px-2 py-1 transition-colors hover:bg-slate-50"
                             onClick={() => navigateTo(entry)}
                           >
                             {/* Row 1: task label + item number + status */}
                             <div className="flex items-center gap-1.5">
-                              <span className="shrink-0 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                 {TASK_LABELS[entry.task] ?? entry.task}
                               </span>
                               {itemNum !== null && (
-                                <span className="shrink-0 rounded bg-slate-100 px-1 text-[10px] font-mono text-slate-500">
+                                <span className="shrink-0 rounded bg-slate-100 px-1 font-mono text-[10px] text-slate-500">
                                   #{itemNum}
                                 </span>
                               )}
@@ -1081,7 +1081,7 @@ export default function Q1Q2AnnotationApp() {
                               </Badge>
                             </div>
                             {/* Row 2: what changed */}
-                            <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                            <p className="truncate text-[10px] text-slate-400">
                               {changeSummary}
                             </p>
                           </li>
