@@ -439,13 +439,15 @@ function createTask3Annotation(
   querySeed: string,
   selectedMemorySeed: EditableMemoryRecord | null,
   existing?: AnySupportedAnnotation,
+  linkedGoldMemories: EditableMemoryRecord[] = [],
 ): Q1Task3Annotation {
   if (existing?.formType === 'Q1:task3') {
+    const baseMemory =
+      existing.editableSelectedMemory ?? (selectedMemorySeed ? cloneMemoryRecord(selectedMemorySeed) : null);
     return {
       ...existing,
       queryText: existing.queryText ?? querySeed,
-      editableSelectedMemory:
-        existing.editableSelectedMemory ?? (selectedMemorySeed ? cloneMemoryRecord(selectedMemorySeed) : null),
+      editableSelectedMemory: syncSelectedMemoryWithGold(baseMemory, linkedGoldMemories),
     };
   }
 
@@ -1164,6 +1166,7 @@ export function TaskSampleDisplay({
         asString(original.query) ?? '',
         task3SelectedMemorySeed,
         activeIntegratedAnnotation,
+        linkedGoldMemories,
       );
       const validateTask3 = () => {
         if (!task3Annotation.queryText.trim()) {

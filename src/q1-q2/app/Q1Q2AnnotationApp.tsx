@@ -258,7 +258,19 @@ function syncExistingQ1AnnotationsFromTask1(
           const id = typeof mem.memory_id === 'string' ? mem.memory_id : null;
           const gold = id ? goldById.get(id) : undefined;
           if (!gold) return mem;
-          return { ...mem, memory_id: gold.memory_id, value: gold.value };
+          // Sync taxonomy/metadata from gold; preserve task2-specific fields.
+          return {
+            ...mem,
+            memory_id: gold.memory_id,
+            value: gold.value,
+            type: gold.type,
+            label: gold.label,
+            label_suggestion: gold.label_suggestion,
+            confidence: gold.confidence,
+            time_scope: gold.time_scope,
+            emotion: gold.emotion,
+            preference_attitude: gold.preference_attitude,
+          };
         });
         const nextAnnotation: Q1Task2Annotation = {
           ...entry.annotation,
