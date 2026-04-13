@@ -507,6 +507,7 @@ export default function Q1Q2AnnotationApp() {
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>('judge_visible');
   const [savedAnnotations, setSavedAnnotations] = useState<Record<string, SavedAnnotationEntry>>({});
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   // 鈹€鈹€鈹€ Derived state 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
@@ -944,57 +945,62 @@ export default function Q1Q2AnnotationApp() {
               onJump={handleJump}
             />
 
-            {/* Annotation history panel */}
+            {/* Annotation history panel — live, newest-first, 3 visible by default */}
             {(() => {
               const historyEntries = Object.values(savedAnnotations).sort((a, b) =>
                 (b.annotation.updatedAt ?? '').localeCompare(a.annotation.updatedAt ?? ''),
               );
               if (historyEntries.length === 0) return null;
+              const VISIBLE = 3;
+              const visibleEntries = historyExpanded ? historyEntries : historyEntries.slice(0, VISIBLE);
+              const hasMore = historyEntries.length > VISIBLE;
+              const navigateTo = (entry: SavedAnnotationEntry) => {
+                if (!dataset) return;
+                const targetEntry = dataset.entries.find(
+                  (e) =>
+                    e.track === entry.track &&
+                    e.task === entry.task &&
+                    (entry.ability ? e.ability === entry.ability : !e.ability),
+                );
+                if (!targetEntry) return;
+                const itemIndex = targetEntry.manifestRows.findIndex(
+                  (row) =>
+                    row.session_id === entry.sessionId &&
+                    row.canonical_id === entry.canonicalId,
+                );
+                if (itemIndex < 0) return;
+                switchToEntry(targetEntry);
+                setCurrentItemIndex(itemIndex);
+              };
               return (
                 <Card className="shadow-sm">
-                  <CardHeader className="border-b border-slate-100 px-5 py-3">
+                  <CardHeader className="border-b border-slate-100 px-4 py-2.5">
                     <CardTitle className="flex items-center justify-between text-sm font-medium text-slate-700">
                       <span className="flex items-center gap-2">
-                        <History className="h-4 w-4 text-slate-400" />
+                        <History className="h-3.5 w-3.5 text-slate-400" />
                         标注历史
                       </span>
-                      <Badge variant="outline" className="text-xs text-slate-500">
+                      <Badge variant="outline" className="text-[10px] text-slate-500">
                         {historyEntries.length} 条
                       </Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="px-5 py-3">
-                    <ol className="max-h-52 space-y-0.5 overflow-y-auto">
-                      {historyEntries.map((entry, index) => {
+                  <CardContent className="px-4 py-2">
+                    <ol className="space-y-0.5">
+                      {visibleEntries.map((entry, index) => {
                         const isSaved = entry.annotation.status === 'saved';
                         return (
                           <li
                             key={entry.draftKey}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
-                            onClick={() => {
-                              if (!dataset) return;
-                              const targetEntry = dataset.entries.find(
-                                (e) =>
-                                  e.track === entry.track &&
-                                  e.task === entry.task &&
-                                  (entry.ability ? e.ability === entry.ability : !e.ability),
-                              );
-                              if (!targetEntry) return;
-                              const itemIndex = targetEntry.manifestRows.findIndex(
-                                (row) =>
-                                  row.session_id === entry.sessionId &&
-                                  row.canonical_id === entry.canonicalId,
-                              );
-                              if (itemIndex < 0) return;
-                              switchToEntry(targetEntry);
-                              setCurrentItemIndex(itemIndex);
-                            }}
+                            className="flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-slate-50"
+                            onClick={() => navigateTo(entry)}
                           >
-                            <span className="w-5 shrink-0 text-right text-xs text-slate-400">
+                            <span className="w-4 shrink-0 text-right text-[10px] text-slate-400">
                               {index + 1}.
                             </span>
                             <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
-                              {TASK_LABELS[entry.task] ?? entry.task} — {entry.sessionId}
+                              {TASK_LABELS[entry.task] ?? entry.task}
+                              <span className="ml-1 font-mono text-slate-400">{entry.sessionId}</span>
                             </span>
                             <Badge
                               variant="outline"
@@ -1010,6 +1016,17 @@ export default function Q1Q2AnnotationApp() {
                         );
                       })}
                     </ol>
+                    {hasMore && (
+                      <button
+                        type="button"
+                        className="mt-1.5 w-full rounded-md py-1 text-center text-[11px] text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
+                        onClick={() => setHistoryExpanded((v) => !v)}
+                      >
+                        {historyExpanded
+                          ? '收起 ↑'
+                          : `显示全部 ${historyEntries.length} 条 ↓`}
+                      </button>
+                    )}
                   </CardContent>
                 </Card>
               );
