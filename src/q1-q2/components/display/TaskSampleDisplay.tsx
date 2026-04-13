@@ -829,6 +829,7 @@ export function TaskSampleDisplay({
   // Reset UI carousel positions only when navigating to a different item.
   useEffect(() => {
     setIntegratedValidationError('');
+    setTask1CopyWarning('');
     setActiveTask1ModelIndex(0);
     setActiveTask4QueryIndex(0);
     setEvidenceSelection(null);
