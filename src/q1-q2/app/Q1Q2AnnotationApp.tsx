@@ -1,11 +1,11 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle,
   Archive,
   ArrowDownToLine,
   ChevronLeft,
   ChevronRight,
   FileJson,
+  History,
   LoaderCircle,
   RefreshCw,
 } from 'lucide-react';
@@ -944,23 +944,76 @@ export default function Q1Q2AnnotationApp() {
               onJump={handleJump}
             />
 
-            {dataset.warnings.length > 0 && (
-              <Card className="border-amber-200 bg-amber-50 shadow-sm">
-                <CardHeader className="border-b border-amber-100 px-5 py-3">
-                  <CardTitle className="flex items-center gap-2 text-sm font-medium text-amber-800">
-                    <AlertTriangle className="h-4 w-4" />
-                    导入提示
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-5 py-4">
-                  <ul className="list-disc space-y-1 pl-5 text-sm text-amber-700">
-                    {dataset.warnings.map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+            {/* Annotation history panel */}
+            {(() => {
+              const historyEntries = Object.values(savedAnnotations).sort((a, b) =>
+                (b.annotation.updatedAt ?? '').localeCompare(a.annotation.updatedAt ?? ''),
+              );
+              if (historyEntries.length === 0) return null;
+              return (
+                <Card className="shadow-sm">
+                  <CardHeader className="border-b border-slate-100 px-5 py-3">
+                    <CardTitle className="flex items-center justify-between text-sm font-medium text-slate-700">
+                      <span className="flex items-center gap-2">
+                        <History className="h-4 w-4 text-slate-400" />
+                        标注历史
+                      </span>
+                      <Badge variant="outline" className="text-xs text-slate-500">
+                        {historyEntries.length} 条
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-5 py-3">
+                    <ol className="max-h-52 space-y-0.5 overflow-y-auto">
+                      {historyEntries.map((entry, index) => {
+                        const isSaved = entry.annotation.status === 'saved';
+                        return (
+                          <li
+                            key={entry.draftKey}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
+                            onClick={() => {
+                              if (!dataset) return;
+                              const targetEntry = dataset.entries.find(
+                                (e) =>
+                                  e.track === entry.track &&
+                                  e.task === entry.task &&
+                                  (entry.ability ? e.ability === entry.ability : !e.ability),
+                              );
+                              if (!targetEntry) return;
+                              const itemIndex = targetEntry.manifestRows.findIndex(
+                                (row) =>
+                                  row.session_id === entry.sessionId &&
+                                  row.canonical_id === entry.canonicalId,
+                              );
+                              if (itemIndex < 0) return;
+                              switchToEntry(targetEntry);
+                              setCurrentItemIndex(itemIndex);
+                            }}
+                          >
+                            <span className="w-5 shrink-0 text-right text-xs text-slate-400">
+                              {index + 1}.
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
+                              {TASK_LABELS[entry.task] ?? entry.task} — {entry.sessionId}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={
+                                isSaved
+                                  ? 'shrink-0 border-green-200 bg-green-50 text-[10px] text-green-700'
+                                  : 'shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-700'
+                              }
+                            >
+                              {isSaved ? '已保存' : '草稿'}
+                            </Badge>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
             <div
               className={
