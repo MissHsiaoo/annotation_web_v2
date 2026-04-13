@@ -368,7 +368,20 @@ function syncUpdatedMemoriesWithGold(
   const patched = memories.map((m) => {
     const id = String(m.memory_id ?? '');
     const gold = id ? goldMemories.find((g) => String(g.memory_id ?? '') === id) : null;
-    return gold ? { ...m, memory_id: gold.memory_id, value: gold.value } : m;
+    if (!gold) return m;
+    // Sync taxonomy/metadata from gold; preserve task2-specific fields (reasoning, evidence, evidence_text).
+    return {
+      ...m,
+      memory_id: gold.memory_id,
+      value: gold.value,
+      type: gold.type,
+      label: gold.label,
+      label_suggestion: gold.label_suggestion,
+      confidence: gold.confidence,
+      time_scope: gold.time_scope,
+      emotion: gold.emotion,
+      preference_attitude: gold.preference_attitude,
+    };
   });
 
   // Append new gold memories not already present
@@ -900,6 +913,11 @@ export function TaskSampleDisplay({
               memories={task1Annotation.editableGoldMemories ?? []}
               displayMode="carousel"
               translationEnabled={translationEnabled}
+              onActiveIndexChange={(nextIndex) => {
+                if (evidenceSelection !== null && nextIndex !== evidenceSelection.memoryIndex) {
+                  setEvidenceSelection(null);
+                }
+              }}
               onPickEvidence={(memoryIndex, currentIndices) =>
                 setEvidenceSelection({ memoryIndex, selectedIndices: new Set(currentIndices) })
               }
@@ -1093,6 +1111,11 @@ export function TaskSampleDisplay({
               memories={task2Annotation.editableUpdatedMemories}
               displayMode="carousel"
               translationEnabled={translationEnabled}
+              onActiveIndexChange={(nextIndex) => {
+                if (evidenceSelection !== null && nextIndex !== evidenceSelection.memoryIndex) {
+                  setEvidenceSelection(null);
+                }
+              }}
               onPickEvidence={(memoryIndex, currentIndices) =>
                 setEvidenceSelection({ memoryIndex, selectedIndices: new Set(currentIndices) })
               }
@@ -1155,6 +1178,7 @@ export function TaskSampleDisplay({
       const isDefaultTask3Query = task3Annotation.queryText === originalTask3Query;
       const defaultTask3MemoryId = task3SelectedMemorySeed?.memory_id;
       const isDefaultTask3Memory =
+        !!defaultTask3MemoryId &&
         task3Annotation.editableSelectedMemory?.memory_id === defaultTask3MemoryId;
       const task3PickerMemories =
         linkedGoldMemories.length > 0 ? linkedGoldMemories : task3CandidateMemories;
@@ -1346,6 +1370,7 @@ export function TaskSampleDisplay({
         querySeeds.find((s) => s.queryId === activeTask4SubAnnotation?.queryId) ?? null;
       const defaultTask4MemoryId = activeQuerySeed?.selectedMemorySeed?.memory_id;
       const isDefaultTask4Memory =
+        !!defaultTask4MemoryId &&
         activeTask4SubAnnotation?.editableSelectedMemory?.memory_id === defaultTask4MemoryId;
       const task4PickerMemories =
         linkedGoldMemories.length > 0 ? linkedGoldMemories : candidateMemories;
@@ -1680,9 +1705,16 @@ export function TaskSampleDisplay({
               <AlertDialogAction
                 onClick={() => {
                   if (task4PendingMemory && activeTask4SubAnnotation) {
-                    updateTask4SubAnnotation(activeTask4SubAnnotation.queryId, {
-                      editableSelectedMemory: task4PendingMemory,
-                    });
+                    updateIntegratedAnnotation(
+                      markDraft(task4Annotation, {
+                        editableSelectedMemory: task4PendingMemory,
+                        subAnnotations: task4Annotation.subAnnotations.map((item) =>
+                          item.queryId === activeTask4SubAnnotation.queryId
+                            ? { ...item, editableSelectedMemory: task4PendingMemory }
+                            : item,
+                        ),
+                      }),
+                    );
                   }
                   setTask4PendingMemory(null);
                 }}
@@ -1693,10 +1725,16 @@ export function TaskSampleDisplay({
                 className={buttonVariants({ variant: 'destructive' })}
                 onClick={() => {
                   if (task4PendingMemory && activeTask4SubAnnotation) {
-                    updateTask4SubAnnotation(activeTask4SubAnnotation.queryId, {
-                      editableSelectedMemory: task4PendingMemory,
-                      queryText: '',
-                    });
+                    updateIntegratedAnnotation(
+                      markDraft(task4Annotation, {
+                        editableSelectedMemory: task4PendingMemory,
+                        subAnnotations: task4Annotation.subAnnotations.map((item) =>
+                          item.queryId === activeTask4SubAnnotation.queryId
+                            ? { ...item, editableSelectedMemory: task4PendingMemory, queryText: '' }
+                            : item,
+                        ),
+                      }),
+                    );
                   }
                   setTask4PendingMemory(null);
                 }}
