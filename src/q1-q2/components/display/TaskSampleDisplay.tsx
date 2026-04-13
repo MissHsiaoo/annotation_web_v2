@@ -886,6 +886,7 @@ export function TaskSampleDisplay({
               memories={task1Annotation.editableGoldMemories ?? []}
               displayMode="carousel"
               translationEnabled={translationEnabled}
+              dialogueTurns={normalizeConversation(probe?.dialogue)}
               onChange={(editableGoldMemories) =>
                 updateIntegratedAnnotation(markDraft(task1Annotation, { editableGoldMemories }))
               }
@@ -1051,6 +1052,7 @@ export function TaskSampleDisplay({
               memories={task2Annotation.editableUpdatedMemories}
               displayMode="carousel"
               translationEnabled={translationEnabled}
+              dialogueTurns={normalizeConversation(record?.new_dialogue)}
               onChange={(editableUpdatedMemories) =>
                 updateIntegratedAnnotation(markDraft(task2Annotation, { editableUpdatedMemories }))
               }
