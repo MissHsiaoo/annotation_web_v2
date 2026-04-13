@@ -339,30 +339,60 @@ function createTask1Annotation(
   };
 }
 
+function syncUpdatedMemoriesWithGold(
+  memories: EditableMemoryRecord[],
+  goldMemories: EditableMemoryRecord[],
+): EditableMemoryRecord[] {
+  if (goldMemories.length === 0) return memories;
+
+  // Patch value for memories with matching ID
+  const existingIds = new Set(memories.map((m) => String(m.memory_id ?? '')).filter(Boolean));
+  const patched = memories.map((m) => {
+    const id = String(m.memory_id ?? '');
+    const gold = id ? goldMemories.find((g) => String(g.memory_id ?? '') === id) : null;
+    return gold ? { ...m, memory_id: gold.memory_id, value: gold.value } : m;
+  });
+
+  // Append new gold memories not already present
+  const newEntries = goldMemories
+    .filter((g) => {
+      const id = String(g.memory_id ?? '');
+      return id && !existingIds.has(id);
+    })
+    .map(cloneMemoryRecord);
+
+  return [...patched, ...newEntries];
+}
+
 function createTask2Annotation(
   newDialogueSeed: Array<{ turnId: string; role: string; text: string }>,
   updatedMemorySeed: EditableMemoryRecord[],
   existing?: AnySupportedAnnotation,
+  linkedGoldMemories: EditableMemoryRecord[] = [],
 ): Q1Task2Annotation {
-  if (existing?.formType === 'Q1:task2') {
-    return existing;
-  }
+  const base: Q1Task2Annotation =
+    existing?.formType === 'Q1:task2'
+      ? existing
+      : {
+          formType: 'Q1:task2',
+          status: 'draft',
+          updatedAt: '',
+          overallVerdict: 'reasonable',
+          expectedAction: 'modification',
+          newDialogueContainsUpdateSignal: 'yes',
+          goldUpdateReasonable: 'yes',
+          changedOnlyRelevantMemory: 'yes',
+          editableNewDialogue: newDialogueSeed,
+          editableUpdatedMemories: updatedMemorySeed.map(cloneMemoryRecord),
+          issueTypes: [],
+          evidenceNote: '',
+          revisionSuggestion: '',
+          annotatorNote: '',
+        };
 
   return {
-    formType: 'Q1:task2',
-    status: 'draft',
-    updatedAt: '',
-    overallVerdict: 'reasonable',
-    expectedAction: 'modification',
-    newDialogueContainsUpdateSignal: 'yes',
-    goldUpdateReasonable: 'yes',
-    changedOnlyRelevantMemory: 'yes',
-    editableNewDialogue: newDialogueSeed,
-    editableUpdatedMemories: updatedMemorySeed.map(cloneMemoryRecord),
-    issueTypes: [],
-    evidenceNote: '',
-    revisionSuggestion: '',
-    annotatorNote: '',
+    ...base,
+    editableUpdatedMemories: syncUpdatedMemoriesWithGold(base.editableUpdatedMemories, linkedGoldMemories),
   };
 }
 
@@ -679,8 +709,6 @@ export function TaskSampleDisplay({
   const [integratedValidationError, setIntegratedValidationError] = useState('');
   const [activeTask1ModelIndex, setActiveTask1ModelIndex] = useState(0);
   const [activeTask4QueryIndex, setActiveTask4QueryIndex] = useState(0);
-  const [task2CarouselIndex, setTask2CarouselIndex] = useState(0);
-
   // Sync annotation state whenever the prop changes (draft saves, bundle imports).
   useEffect(() => {
     setIntegratedAnnotation(currentAnnotation);
@@ -691,7 +719,6 @@ export function TaskSampleDisplay({
     setIntegratedValidationError('');
     setActiveTask1ModelIndex(0);
     setActiveTask4QueryIndex(0);
-    setTask2CarouselIndex(0);
   }, [loadedItem.itemPath]);
 
   const { entry, itemData } = loadedItem;
@@ -875,6 +902,7 @@ export function TaskSampleDisplay({
         getNewDialogueSeeds(record?.new_dialogue),
         task2MemorySeed,
         activeIntegratedAnnotation,
+        linkedGoldMemories,
       );
 
       return (
@@ -900,8 +928,6 @@ export function TaskSampleDisplay({
               title="Existing Memory Set"
               description="Current memories before applying the update."
               items={task2DisplayedMemories}
-              activeIndex={task2CarouselIndex}
-              onActiveIndexChange={setTask2CarouselIndex}
               displayMode="carousel"
               translationEnabled={translationEnabled}
             />
@@ -917,7 +943,6 @@ export function TaskSampleDisplay({
               memories={task2Annotation.editableUpdatedMemories}
               displayMode="carousel"
               translationEnabled={translationEnabled}
-              onActiveIndexChange={setTask2CarouselIndex}
               onChange={(editableUpdatedMemories) =>
                 updateIntegratedAnnotation(markDraft(task2Annotation, { editableUpdatedMemories }))
               }
@@ -938,7 +963,18 @@ export function TaskSampleDisplay({
     }
 
     if (entry.track === 'Q1' && entry.task === 'task3') {
-      const task3CandidateMemories = getMemoryRecords(original.candidate_memories);
+      const task3BaseCandidates = getMemoryRecords(original.candidate_memories);
+      const task3ExistingIds = new Set(
+        task3BaseCandidates.map((m) => String(m.memory_id ?? '')).filter(Boolean),
+      );
+      const task3NewFromGold = linkedGoldMemories.filter((g) => {
+        const id = String(g.memory_id ?? '');
+        return id && !task3ExistingIds.has(id);
+      });
+      const task3CandidateMemories = [
+        ...task3BaseCandidates,
+        ...task3NewFromGold.map(cloneMemoryRecord),
+      ];
       const task3SelectedMemorySeed = syncSelectedMemoryWithGold(
         getSelectedMemoryRecord(original.selected_memory),
         linkedGoldMemories,
