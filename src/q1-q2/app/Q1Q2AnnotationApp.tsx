@@ -254,11 +254,6 @@ function syncExistingQ1AnnotationsFromTask1(
             .filter((m) => typeof m.memory_id === 'string' && (m.memory_id as string).trim())
             .map((m) => [m.memory_id as string, m]),
         );
-        const existingIds = new Set(
-          entry.annotation.editableUpdatedMemories
-            .map((mem) => (typeof mem.memory_id === 'string' ? mem.memory_id : null))
-            .filter(Boolean),
-        );
         const syncedMemories = entry.annotation.editableUpdatedMemories.map((mem) => {
           const id = typeof mem.memory_id === 'string' ? mem.memory_id : null;
           const gold = id ? goldById.get(id) : undefined;
@@ -277,20 +272,9 @@ function syncExistingQ1AnnotationsFromTask1(
             preference_attitude: gold.preference_attitude,
           };
         });
-        // Append gold memories that don't yet exist in task2.
-        // Clear evidence/evidence_text: those reference task1 dialogue turns,
-        // not the task2 new_dialogue turns.
-        const newEntries = goldMemories
-          .filter(
-            (gold) =>
-              typeof gold.memory_id === 'string' &&
-              (gold.memory_id as string).trim() &&
-              !existingIds.has(gold.memory_id as string),
-          )
-          .map((gold) => ({ ...gold, evidence: null, evidence_text: '' }));
         const nextAnnotation: Q1Task2Annotation = {
           ...entry.annotation,
-          editableUpdatedMemories: cloneMemoryRecords([...syncedMemories, ...newEntries] as Array<Record<string, unknown>>),
+          editableUpdatedMemories: cloneMemoryRecords(syncedMemories as Array<Record<string, unknown>>),
           updatedAt: timestamp,
         };
         syncedEntryCount += 1;

@@ -363,8 +363,7 @@ function syncUpdatedMemoriesWithGold(
 ): EditableMemoryRecord[] {
   if (goldMemories.length === 0) return memories;
 
-  // Patch value for memories with matching ID
-  const existingIds = new Set(memories.map((m) => String(m.memory_id ?? '')).filter(Boolean));
+  // Patch taxonomy/metadata for memories with matching ID; preserve task2-specific fields.
   const patched = memories.map((m) => {
     const id = String(m.memory_id ?? '');
     const gold = id ? goldMemories.find((g) => String(g.memory_id ?? '') === id) : null;
@@ -384,25 +383,7 @@ function syncUpdatedMemoriesWithGold(
     };
   });
 
-  // Append new gold memories not already present.
-  // Clear evidence/evidence_text because those reference task1 dialogue turns,
-  // not the task2 new_dialogue turns.
-  const newEntries = goldMemories
-    .filter((g) => {
-      const id = String(g.memory_id ?? '');
-      return id && !existingIds.has(id);
-    })
-    .map((g) => ({ ...cloneMemoryRecord(g), evidence: null, evidence_text: '' }));
-
-  // Safety net: deduplicate final list by memory_id (keep first occurrence)
-  const seen = new Set<string>();
-  return [...patched, ...newEntries].filter((m) => {
-    const id = String(m.memory_id ?? '');
-    if (!id) return true;
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
+  return patched;
 }
 
 function createTask2Annotation(
