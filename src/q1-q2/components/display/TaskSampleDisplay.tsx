@@ -384,13 +384,15 @@ function syncUpdatedMemoriesWithGold(
     };
   });
 
-  // Append new gold memories not already present
+  // Append new gold memories not already present.
+  // Clear evidence/evidence_text because those reference task1 dialogue turns,
+  // not the task2 new_dialogue turns.
   const newEntries = goldMemories
     .filter((g) => {
       const id = String(g.memory_id ?? '');
       return id && !existingIds.has(id);
     })
-    .map(cloneMemoryRecord);
+    .map((g) => ({ ...cloneMemoryRecord(g), evidence: null, evidence_text: '' }));
 
   // Safety net: deduplicate final list by memory_id (keep first occurrence)
   const seen = new Set<string>();
@@ -833,6 +835,10 @@ export function TaskSampleDisplay({
     setActiveTask1ModelIndex(0);
     setActiveTask4QueryIndex(0);
     setEvidenceSelection(null);
+    setTask3PickerOpen(false);
+    setTask3PendingMemory(null);
+    setTask4PickerOpen(false);
+    setTask4PendingMemory(null);
   }, [loadedItem.itemPath]);
 
   const { entry, itemData } = loadedItem;
@@ -1507,9 +1513,16 @@ export function TaskSampleDisplay({
               translationEnabled={translationEnabled}
               onChange={(nextMemories) => {
                 if (activeTask4SubAnnotation) {
-                  updateTask4SubAnnotation(activeTask4SubAnnotation.queryId, {
-                    editableSelectedMemory: nextMemories[0] ?? null,
-                  });
+                  updateIntegratedAnnotation(
+                    markDraft(task4Annotation, {
+                      editableSelectedMemory: nextMemories[0] ?? task4Annotation.editableSelectedMemory,
+                      subAnnotations: task4Annotation.subAnnotations.map((item) =>
+                        item.queryId === activeTask4SubAnnotation.queryId
+                          ? { ...item, editableSelectedMemory: nextMemories[0] ?? null }
+                          : item,
+                      ),
+                    }),
+                  );
                 }
               }}
               addButtonLabel="Restore Selected Memory"

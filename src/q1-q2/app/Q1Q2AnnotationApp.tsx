@@ -278,12 +278,16 @@ function syncExistingQ1AnnotationsFromTask1(
           };
         });
         // Append gold memories that don't yet exist in task2.
-        const newEntries = goldMemories.filter(
-          (gold) =>
-            typeof gold.memory_id === 'string' &&
-            (gold.memory_id as string).trim() &&
-            !existingIds.has(gold.memory_id as string),
-        );
+        // Clear evidence/evidence_text: those reference task1 dialogue turns,
+        // not the task2 new_dialogue turns.
+        const newEntries = goldMemories
+          .filter(
+            (gold) =>
+              typeof gold.memory_id === 'string' &&
+              (gold.memory_id as string).trim() &&
+              !existingIds.has(gold.memory_id as string),
+          )
+          .map((gold) => ({ ...gold, evidence: null, evidence_text: '' }));
         const nextAnnotation: Q1Task2Annotation = {
           ...entry.annotation,
           editableUpdatedMemories: cloneMemoryRecords([...syncedMemories, ...newEntries] as Array<Record<string, unknown>>),
