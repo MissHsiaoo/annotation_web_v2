@@ -87,6 +87,51 @@ const ABILITY_LABELS: Record<AbilityKey, string> = {
 
 // 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
+function memId(m: Record<string, unknown>): string {
+  return typeof m.memory_id === 'string' && m.memory_id.trim() ? m.memory_id : '?';
+}
+
+function getAnnotationChangeSummary(entry: SavedAnnotationEntry): string {
+  const ann = entry.annotation;
+
+  if (ann.formType === 'Q1:task1') {
+    const mems = ann.editableGoldMemories ?? [];
+    if (mems.length === 0) return 'Golden memories: 空';
+    const shown = mems.slice(0, 3).map(memId).join(', ');
+    return `Golden: ${shown}${mems.length > 3 ? ` +${mems.length - 3}` : ''}`;
+  }
+
+  if (ann.formType === 'Q1:task2') {
+    const mems = ann.editableUpdatedMemories ?? [];
+    if (mems.length === 0) return 'Updated memories: 空';
+    const shown = mems.slice(0, 3).map(memId).join(', ');
+    return `Updated: ${shown}${mems.length > 3 ? ` +${mems.length - 3}` : ''}`;
+  }
+
+  if (ann.formType === 'Q1:task3') {
+    const parts: string[] = [];
+    const mid = ann.editableSelectedMemory ? memId(ann.editableSelectedMemory as Record<string, unknown>) : null;
+    if (mid) parts.push(`Memory: ${mid}`);
+    const q = ann.queryText?.trim();
+    if (q) parts.push(`Query: "${q.length > 28 ? q.slice(0, 28) + '…' : q}"`);
+    return parts.join(' · ') || '无内容';
+  }
+
+  if (ann.formType === 'Q1:task4') {
+    const subs = ann.subAnnotations ?? [];
+    if (subs.length === 0) return 'No queries';
+    return subs
+      .slice(0, 3)
+      .map((s) => {
+        const mid = s.editableSelectedMemory ? memId(s.editableSelectedMemory as Record<string, unknown>) : null;
+        return `${s.queryId}${mid ? `→${mid}` : ''}`;
+      })
+      .join(', ') + (subs.length > 3 ? ` +${subs.length - 3}` : '');
+  }
+
+  return entry.task;
+}
+
 function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -954,6 +999,20 @@ export default function Q1Q2AnnotationApp() {
               const VISIBLE = 3;
               const visibleEntries = historyExpanded ? historyEntries : historyEntries.slice(0, VISIBLE);
               const hasMore = historyEntries.length > VISIBLE;
+              const getItemNumber = (entry: SavedAnnotationEntry): number | null => {
+                if (!dataset) return null;
+                const te = dataset.entries.find(
+                  (e) =>
+                    e.track === entry.track &&
+                    e.task === entry.task &&
+                    (entry.ability ? e.ability === entry.ability : !e.ability),
+                );
+                if (!te) return null;
+                const idx = te.manifestRows.findIndex(
+                  (row) => row.session_id === entry.sessionId && row.canonical_id === entry.canonicalId,
+                );
+                return idx >= 0 ? idx + 1 : null;
+              };
               const navigateTo = (entry: SavedAnnotationEntry) => {
                 if (!dataset) return;
                 const targetEntry = dataset.entries.find(
@@ -986,32 +1045,45 @@ export default function Q1Q2AnnotationApp() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 py-2">
-                    <ol className="space-y-0.5">
-                      {visibleEntries.map((entry, index) => {
+                    <ol className="space-y-1">
+                      {visibleEntries.map((entry) => {
                         const isSaved = entry.annotation.status === 'saved';
+                        const itemNum = getItemNumber(entry);
+                        const changeSummary = getAnnotationChangeSummary(entry);
                         return (
                           <li
                             key={entry.draftKey}
-                            className="flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-slate-50"
+                            className="cursor-pointer rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
                             onClick={() => navigateTo(entry)}
                           >
-                            <span className="w-4 shrink-0 text-right text-[10px] text-slate-400">
-                              {index + 1}.
-                            </span>
-                            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
-                              {TASK_LABELS[entry.task] ?? entry.task}
-                              <span className="ml-1 font-mono text-slate-400">{entry.sessionId}</span>
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className={
-                                isSaved
-                                  ? 'shrink-0 border-green-200 bg-green-50 text-[10px] text-green-700'
-                                  : 'shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-700'
-                              }
-                            >
-                              {isSaved ? '已保存' : '草稿'}
-                            </Badge>
+                            {/* Row 1: task label + item number + status */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="shrink-0 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                                {TASK_LABELS[entry.task] ?? entry.task}
+                              </span>
+                              {itemNum !== null && (
+                                <span className="shrink-0 rounded bg-slate-100 px-1 text-[10px] font-mono text-slate-500">
+                                  #{itemNum}
+                                </span>
+                              )}
+                              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-slate-400">
+                                {entry.sessionId}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  isSaved
+                                    ? 'shrink-0 border-green-200 bg-green-50 text-[10px] text-green-700'
+                                    : 'shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-700'
+                                }
+                              >
+                                {isSaved ? '已保存' : '草稿'}
+                              </Badge>
+                            </div>
+                            {/* Row 2: what changed */}
+                            <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                              {changeSummary}
+                            </p>
                           </li>
                         );
                       })}
