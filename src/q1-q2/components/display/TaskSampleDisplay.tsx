@@ -802,6 +802,10 @@ export function TaskSampleDisplay({
   const [task3PendingMemory, setTask3PendingMemory] = useState<EditableMemoryRecord | null>(null);
   const [task4PickerOpen, setTask4PickerOpen] = useState(false);
   const [task4PendingMemory, setTask4PendingMemory] = useState<EditableMemoryRecord | null>(null);
+  const [evidenceSelection, setEvidenceSelection] = useState<{
+    memoryIndex: number;
+    selectedIndices: Set<number>;
+  } | null>(null);
   // Sync annotation state whenever the prop changes (draft saves, bundle imports).
   useEffect(() => {
     setIntegratedAnnotation(currentAnnotation);
@@ -812,6 +816,7 @@ export function TaskSampleDisplay({
     setIntegratedValidationError('');
     setActiveTask1ModelIndex(0);
     setActiveTask4QueryIndex(0);
+    setEvidenceSelection(null);
   }, [loadedItem.itemPath]);
 
   const { entry, itemData } = loadedItem;
@@ -873,6 +878,15 @@ export function TaskSampleDisplay({
               description="Source dialogue used to build the golden memory set."
               turns={normalizeConversation(probe?.dialogue)}
               translationEnabled={translationEnabled}
+              evidenceMode={evidenceSelection !== null}
+              selectedIndices={evidenceSelection?.selectedIndices}
+              onTurnClick={(index) => {
+                if (!evidenceSelection) return;
+                const next = new Set(evidenceSelection.selectedIndices);
+                if (next.has(index)) next.delete(index);
+                else next.add(index);
+                setEvidenceSelection({ ...evidenceSelection, selectedIndices: next });
+              }}
             />
           </TaskColumn>
           <TaskColumn
@@ -886,7 +900,25 @@ export function TaskSampleDisplay({
               memories={task1Annotation.editableGoldMemories ?? []}
               displayMode="carousel"
               translationEnabled={translationEnabled}
-              dialogueTurns={normalizeConversation(probe?.dialogue)}
+              onPickEvidence={(memoryIndex, currentIndices) =>
+                setEvidenceSelection({ memoryIndex, selectedIndices: new Set(currentIndices) })
+              }
+              activeEvidenceMemoryIndex={evidenceSelection?.memoryIndex ?? null}
+              onConfirmEvidence={(memoryIndex) => {
+                if (!evidenceSelection) return;
+                const turns = normalizeConversation(probe?.dialogue);
+                const sortedIndices = Array.from(evidenceSelection.selectedIndices).sort((a, b) => a - b);
+                const evidenceValue = sortedIndices.length > 0
+                  ? { turn_indices: sortedIndices, turns: sortedIndices.map((i) => ({ index: i, role: turns[i]?.role ?? '', text: turns[i]?.text ?? '' })) }
+                  : null;
+                const memories = [...(task1Annotation.editableGoldMemories ?? [])];
+                if (memories[memoryIndex]) {
+                  memories[memoryIndex] = { ...memories[memoryIndex], evidence: evidenceValue };
+                  updateIntegratedAnnotation(markDraft(task1Annotation, { editableGoldMemories: memories }));
+                }
+                setEvidenceSelection(null);
+              }}
+              onCancelEvidence={() => setEvidenceSelection(null)}
               onChange={(editableGoldMemories) =>
                 updateIntegratedAnnotation(markDraft(task1Annotation, { editableGoldMemories }))
               }
@@ -1026,6 +1058,15 @@ export function TaskSampleDisplay({
               description="Dialogue that may trigger memory updates."
               turns={normalizeConversation(record?.new_dialogue)}
               translationEnabled={translationEnabled}
+              evidenceMode={evidenceSelection !== null}
+              selectedIndices={evidenceSelection?.selectedIndices}
+              onTurnClick={(index) => {
+                if (!evidenceSelection) return;
+                const next = new Set(evidenceSelection.selectedIndices);
+                if (next.has(index)) next.delete(index);
+                else next.add(index);
+                setEvidenceSelection({ ...evidenceSelection, selectedIndices: next });
+              }}
             />
           </TaskColumn>
           <TaskColumn
@@ -1052,7 +1093,25 @@ export function TaskSampleDisplay({
               memories={task2Annotation.editableUpdatedMemories}
               displayMode="carousel"
               translationEnabled={translationEnabled}
-              dialogueTurns={normalizeConversation(record?.new_dialogue)}
+              onPickEvidence={(memoryIndex, currentIndices) =>
+                setEvidenceSelection({ memoryIndex, selectedIndices: new Set(currentIndices) })
+              }
+              activeEvidenceMemoryIndex={evidenceSelection?.memoryIndex ?? null}
+              onConfirmEvidence={(memoryIndex) => {
+                if (!evidenceSelection) return;
+                const turns = normalizeConversation(record?.new_dialogue);
+                const sortedIndices = Array.from(evidenceSelection.selectedIndices).sort((a, b) => a - b);
+                const evidenceValue = sortedIndices.length > 0
+                  ? { turn_indices: sortedIndices, turns: sortedIndices.map((i) => ({ index: i, role: turns[i]?.role ?? '', text: turns[i]?.text ?? '' })) }
+                  : null;
+                const memories = [...task2Annotation.editableUpdatedMemories];
+                if (memories[memoryIndex]) {
+                  memories[memoryIndex] = { ...memories[memoryIndex], evidence: evidenceValue };
+                  updateIntegratedAnnotation(markDraft(task2Annotation, { editableUpdatedMemories: memories }));
+                }
+                setEvidenceSelection(null);
+              }}
+              onCancelEvidence={() => setEvidenceSelection(null)}
               onChange={(editableUpdatedMemories) =>
                 updateIntegratedAnnotation(markDraft(task2Annotation, { editableUpdatedMemories }))
               }

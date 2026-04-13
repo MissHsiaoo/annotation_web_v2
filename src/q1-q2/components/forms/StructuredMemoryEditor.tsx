@@ -1,15 +1,7 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Textarea } from '../../../components/ui/textarea';
 import { TranslatedText } from '../display/TranslatedText';
 
@@ -154,6 +146,14 @@ export function validateMemoryRecords(records: EditableMemoryRecord[]): string |
   return null;
 }
 
+/** Extract previously saved turn indices from an evidence field value. */
+export function getEvidenceTurnIndices(evidence: unknown): number[] {
+  if (!isRecord(evidence)) return [];
+  const arr = (evidence as Record<string, unknown>).turn_indices;
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((n): n is number => typeof n === 'number');
+}
+
 interface StructuredMemoryEditorProps {
   title: string;
   description: string;
@@ -163,7 +163,14 @@ interface StructuredMemoryEditorProps {
   addButtonLabel?: string;
   translationEnabled?: boolean;
   displayMode?: 'list' | 'carousel';
-  dialogueTurns?: DialogueTurn[];
+  /** Called when user clicks "Pick from Dialogue" on a memory's evidence field. */
+  onPickEvidence?: (memoryIndex: number, currentIndices: number[]) => void;
+  /** Index of the memory currently being evidence-picked (highlights the field). */
+  activeEvidenceMemoryIndex?: number | null;
+  /** Called when user confirms the evidence selection (Save Evidence). */
+  onConfirmEvidence?: (memoryIndex: number) => void;
+  /** Called when user cancels the evidence selection. */
+  onCancelEvidence?: () => void;
 }
 
 export function StructuredMemoryEditor({
@@ -175,44 +182,12 @@ export function StructuredMemoryEditor({
   addButtonLabel = 'Add Memory',
   translationEnabled = false,
   displayMode = 'list',
-  dialogueTurns,
+  onPickEvidence,
+  activeEvidenceMemoryIndex,
+  onConfirmEvidence,
+  onCancelEvidence,
 }: StructuredMemoryEditorProps) {
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
-  const [evidencePickerOpen, setEvidencePickerOpen] = useState(false);
-  const [evidencePickerMemoryIndex, setEvidencePickerMemoryIndex] = useState(0);
-  const [pickerSelectedIndices, setPickerSelectedIndices] = useState<Set<number>>(new Set());
-
-  const openEvidencePicker = (memIdx: number) => {
-    const memory = memories[memIdx];
-    let initial = new Set<number>();
-    const ev = memory?.evidence;
-    if (isRecord(ev) && Array.isArray((ev as Record<string, unknown>).turn_indices)) {
-      for (const n of (ev as Record<string, unknown>).turn_indices as unknown[]) {
-        if (typeof n === 'number') initial.add(n);
-      }
-    }
-    setPickerSelectedIndices(initial);
-    setEvidencePickerMemoryIndex(memIdx);
-    setEvidencePickerOpen(true);
-  };
-
-  const saveEvidenceFromPicker = () => {
-    if (!dialogueTurns) return;
-    const sorted = Array.from(pickerSelectedIndices).sort((a, b) => a - b);
-    const evidenceValue =
-      sorted.length > 0
-        ? {
-            turn_indices: sorted,
-            turns: sorted.map((idx) => ({
-              index: idx,
-              role: dialogueTurns[idx]?.role ?? '',
-              text: dialogueTurns[idx]?.text ?? '',
-            })),
-          }
-        : null;
-    updateField(evidencePickerMemoryIndex, 'evidence', JSON.stringify(evidenceValue, null, 2));
-    setEvidencePickerOpen(false);
-  };
 
   const setActiveMemoryIndexAndNotify = (updater: number | ((prev: number) => number)) => {
     setActiveMemoryIndex((prev) => {
@@ -296,12 +271,18 @@ export function StructuredMemoryEditor({
             field === 'evidence_text' ||
             isRecord(value) ||
             Array.isArray(value);
+          const isActiveEvidenceField =
+            field === 'evidence' && activeEvidenceMemoryIndex === memoryIndex;
 
           return (
             <label
               key={field}
-              className={`space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 ${
+              className={`space-y-2 rounded-xl border p-3 ${
                 isLongField ? 'lg:col-span-2' : ''
+              } ${
+                isActiveEvidenceField
+                  ? 'border-pink-300 bg-pink-50/40'
+                  : 'border-slate-200 bg-slate-50/70'
               }`}
             >
               <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -312,16 +293,39 @@ export function StructuredMemoryEditor({
                 onChange={(event) => updateField(memoryIndex, field, event.target.value)}
                 className={`rounded-xl border-slate-300 bg-white text-sm ${isLongField ? 'min-h-24' : 'min-h-12'}`}
               />
-              {field === 'evidence' && dialogueTurns && dialogueTurns.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => openEvidencePicker(memoryIndex)}
-                >
-                  Pick from Dialogue
-                </Button>
+              {field === 'evidence' && onPickEvidence ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant={isActiveEvidenceField ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => onPickEvidence(memoryIndex, getEvidenceTurnIndices(memory.evidence))}
+                  >
+                    {isActiveEvidenceField ? 'Picking…' : 'Pick from Dialogue'}
+                  </Button>
+                  {isActiveEvidenceField && onConfirmEvidence && onCancelEvidence ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onConfirmEvidence(memoryIndex)}
+                      >
+                        Save Evidence
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={onCancelEvidence}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
               ) : null}
               {translationEnabled &&
               TRANSLATABLE_FIELD_NAMES.has(field) &&
@@ -346,64 +350,6 @@ export function StructuredMemoryEditor({
         <p className="text-sm font-semibold text-slate-950">{title}</p>
         <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
       </div>
-
-      {/* Evidence picker dialog */}
-      {dialogueTurns && (
-        <Dialog open={evidencePickerOpen} onOpenChange={setEvidencePickerOpen}>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>Select Evidence from Dialogue</DialogTitle>
-              <DialogDescription>
-                Single-click to mark a turn as evidence · Double-click to remove ·{' '}
-                {pickerSelectedIndices.size} turn{pickerSelectedIndices.size !== 1 ? 's' : ''} selected
-              </DialogDescription>
-            </DialogHeader>
-            <div className="max-h-[26rem] space-y-1.5 overflow-y-auto pr-1">
-              {dialogueTurns.map((turn, index) => {
-                const isSelected = pickerSelectedIndices.has(index);
-                return (
-                  <div
-                    key={index}
-                    className={`cursor-pointer select-none rounded-lg border px-3 py-2 transition-colors ${
-                      isSelected
-                        ? 'border-pink-300 bg-pink-100/30'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                    onClick={() =>
-                      setPickerSelectedIndices((prev) => {
-                        const next = new Set(prev);
-                        next.add(index);
-                        return next;
-                      })
-                    }
-                    onDoubleClick={(e) => {
-                      e.preventDefault();
-                      setPickerSelectedIndices((prev) => {
-                        const next = new Set(prev);
-                        next.delete(index);
-                        return next;
-                      });
-                    }}
-                  >
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      {turn.role} · {index + 1}
-                    </p>
-                    <p className="mt-0.5 text-sm leading-5 text-slate-800">{turn.text}</p>
-                  </div>
-                );
-              })}
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEvidencePickerOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={saveEvidenceFromPicker}>
-                Save ({pickerSelectedIndices.size} selected)
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
 
       <div className="space-y-4">
         {displayMode === 'carousel' && memories.length > 1 ? (
