@@ -963,18 +963,7 @@ export function TaskSampleDisplay({
     }
 
     if (entry.track === 'Q1' && entry.task === 'task3') {
-      const task3BaseCandidates = getMemoryRecords(original.candidate_memories);
-      const task3ExistingIds = new Set(
-        task3BaseCandidates.map((m) => String(m.memory_id ?? '')).filter(Boolean),
-      );
-      const task3NewFromGold = linkedGoldMemories.filter((g) => {
-        const id = String(g.memory_id ?? '');
-        return id && !task3ExistingIds.has(id);
-      });
-      const task3CandidateMemories = [
-        ...task3BaseCandidates,
-        ...task3NewFromGold.map(cloneMemoryRecord),
-      ];
+      const task3CandidateMemories = getMemoryRecords(original.candidate_memories);
       const task3SelectedMemorySeed = syncSelectedMemoryWithGold(
         getSelectedMemoryRecord(original.selected_memory),
         linkedGoldMemories,
