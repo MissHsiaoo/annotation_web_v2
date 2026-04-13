@@ -361,7 +361,15 @@ function syncUpdatedMemoriesWithGold(
     })
     .map(cloneMemoryRecord);
 
-  return [...patched, ...newEntries];
+  // Safety net: deduplicate final list by memory_id (keep first occurrence)
+  const seen = new Set<string>();
+  return [...patched, ...newEntries].filter((m) => {
+    const id = String(m.memory_id ?? '');
+    if (!id) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 function createTask2Annotation(
@@ -713,6 +721,7 @@ export function TaskSampleDisplay({
   const [integratedValidationError, setIntegratedValidationError] = useState('');
   const [activeTask1ModelIndex, setActiveTask1ModelIndex] = useState(0);
   const [activeTask4QueryIndex, setActiveTask4QueryIndex] = useState(0);
+  const [task1CopyWarning, setTask1CopyWarning] = useState('');
   // Sync annotation state whenever the prop changes (draft saves, bundle imports).
   useEffect(() => {
     setIntegratedAnnotation(currentAnnotation);
@@ -868,6 +877,18 @@ export function TaskSampleDisplay({
                       translationEnabled={translationEnabled}
                       onCopyItem={(picked) => {
                         const current = task1Annotation.editableGoldMemories ?? [];
+                        const normalizeValue = (v: unknown) =>
+                          String(v ?? '').trim().toLowerCase();
+                        const pickedValue = normalizeValue(picked.value);
+                        const isDuplicate =
+                          pickedValue.length > 0 &&
+                          current.some((m) => normalizeValue(m.value) === pickedValue);
+                        if (isDuplicate) {
+                          setTask1CopyWarning('This memory is already in the golden set.');
+                          setTimeout(() => setTask1CopyWarning(''), 3000);
+                          return;
+                        }
+                        setTask1CopyWarning('');
                         const modelSlug = activeTask1ModelGroup.modelName
                           .replace(/[^a-z0-9]/gi, '_')
                           .replace(/_+/g, '_')
@@ -882,6 +903,9 @@ export function TaskSampleDisplay({
                         updateIntegratedAnnotation(markDraft(task1Annotation, { editableGoldMemories: next }));
                       }}
                     />
+                    {task1CopyWarning ? (
+                      <p className="text-xs font-medium text-amber-600">{task1CopyWarning}</p>
+                    ) : null}
                   </>
                 ) : null}
               </div>
