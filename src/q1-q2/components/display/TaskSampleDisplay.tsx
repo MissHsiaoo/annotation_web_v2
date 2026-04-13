@@ -538,6 +538,7 @@ function createTask4Annotation(
   selectedMemorySeed: EditableMemoryRecord | null,
   ability: Q1Task4Annotation['ability'],
   existing?: AnySupportedAnnotation,
+  linkedGoldMemories: EditableMemoryRecord[] = [],
 ): Q1Task4Annotation {
   const existingTask4 = existing?.formType === 'Q1:task4' ? existing : null;
   const existingById = new Map(existingTask4?.subAnnotations.map((item) => [item.queryId, item]) ?? []);
@@ -547,19 +548,22 @@ function createTask4Annotation(
     status: existingTask4?.status ?? 'draft',
     updatedAt: existingTask4?.updatedAt ?? '',
     ability,
-    editableSelectedMemory:
+    editableSelectedMemory: syncSelectedMemoryWithGold(
       existingTask4?.editableSelectedMemory ?? (selectedMemorySeed ? cloneMemoryRecord(selectedMemorySeed) : null),
+      linkedGoldMemories,
+    ),
     subAnnotations: querySeeds.map((seed) => {
       const existingItem = existingById.get(seed.queryId);
+      const baseMemory = existingItem
+        ? (existingItem.editableSelectedMemory ?? (seed.selectedMemorySeed ? cloneMemoryRecord(seed.selectedMemorySeed) : null))
+        : (seed.selectedMemorySeed ? cloneMemoryRecord(seed.selectedMemorySeed) : null);
       return existingItem
         ? {
             ...existingItem,
             queryText: existingItem.queryText || seed.queryText,
             ability: existingItem.ability ?? seed.ability,
             task4RecordIndex: existingItem.task4RecordIndex ?? seed.task4RecordIndex,
-            editableSelectedMemory:
-              existingItem.editableSelectedMemory ??
-              (seed.selectedMemorySeed ? cloneMemoryRecord(seed.selectedMemorySeed) : null),
+            editableSelectedMemory: syncSelectedMemoryWithGold(baseMemory, linkedGoldMemories),
           }
         : createTask4SubAnnotation(seed);
     }),
@@ -1056,6 +1060,7 @@ export function TaskSampleDisplay({
         selectedMemorySeed,
         entry.ability,
         activeIntegratedAnnotation,
+        linkedGoldMemories,
       );
       const candidateMemories =
         linkedGoldMemories.length > 0
