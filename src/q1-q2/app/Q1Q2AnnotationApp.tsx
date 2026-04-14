@@ -241,7 +241,6 @@ function syncExistingQ1AnnotationsFromTask1(
       const isLinkedQ1Entry =
         entry.track === 'Q1' &&
         entry.sessionId === task1Entry.sessionId &&
-        entry.canonicalId === task1Entry.canonicalId &&
         draftKey !== task1Entry.draftKey;
 
       if (!isLinkedQ1Entry) {
