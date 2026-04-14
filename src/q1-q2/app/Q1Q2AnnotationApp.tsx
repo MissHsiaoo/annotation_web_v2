@@ -588,19 +588,16 @@ export default function Q1Q2AnnotationApp() {
 
   const currentSavedAnnotationEntry = currentDraftKey ? savedAnnotations[currentDraftKey] : undefined;
   const currentSavedAnnotation = currentSavedAnnotationEntry?.annotation;
-  const linkedTask1DraftKey =
-    currentItem
-      ? buildAnnotationDraftKey({
-          track: 'Q1',
-          task: 'task1',
-          sessionId: currentItem.manifestRow.session_id,
-          canonicalId: currentItem.manifestRow.canonical_id,
-        })
-      : null;
-  const linkedTask1Annotation = linkedTask1DraftKey
-    ? savedAnnotations[linkedTask1DraftKey]?.annotation?.formType === 'Q1:task1'
-      ? (savedAnnotations[linkedTask1DraftKey]?.annotation as Q1Task1Annotation)
-      : null
+  const linkedTask1Annotation = currentItem
+    ? (() => {
+        const sessionId = currentItem.manifestRow.session_id;
+        const entry = Object.values(savedAnnotations).find(
+          (e) => e.track === 'Q1' && e.task === 'task1' && e.sessionId === sessionId,
+        );
+        return entry?.annotation?.formType === 'Q1:task1'
+          ? (entry.annotation as Q1Task1Annotation)
+          : null;
+      })()
     : null;
 
   const entrySavedCount = activeEntry
