@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
@@ -154,6 +154,45 @@ export function getEvidenceTurnIndices(evidence: unknown): number[] {
   return arr.filter((n): n is number => typeof n === 'number');
 }
 
+/**
+ * A textarea that keeps local state while the user is typing and only commits
+ * to the parent on blur. This prevents controlled-input clobbering of
+ * intermediate values like "0." when editing numeric fields such as confidence.
+ */
+function LocalTextarea({
+  value,
+  onCommit,
+  className,
+}: {
+  value: string;
+  onCommit: (value: string) => void;
+  className?: string;
+}) {
+  const [local, setLocal] = useState(value);
+  const isEditing = useRef(false);
+
+  useEffect(() => {
+    if (!isEditing.current) {
+      setLocal(value);
+    }
+  }, [value]);
+
+  return (
+    <Textarea
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onFocus={() => {
+        isEditing.current = true;
+      }}
+      onBlur={() => {
+        isEditing.current = false;
+        onCommit(local);
+      }}
+      className={className}
+    />
+  );
+}
+
 interface StructuredMemoryEditorProps {
   title: string;
   description: string;
@@ -288,9 +327,9 @@ export function StructuredMemoryEditor({
               <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                 {field}
               </span>
-              <Textarea
+              <LocalTextarea
                 value={formattedValue}
-                onChange={(event) => updateField(memoryIndex, field, event.target.value)}
+                onCommit={(val) => updateField(memoryIndex, field, val)}
                 className={`rounded-xl border-slate-300 bg-white text-sm ${isLongField ? 'min-h-24' : 'min-h-12'}`}
               />
               {field === 'evidence' && onPickEvidence ? (
