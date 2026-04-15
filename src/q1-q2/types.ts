@@ -117,6 +117,9 @@ export interface Q1Task2Annotation extends CommonAnnotationFields {
   }>;
   editableUpdatedMemories: Array<Record<string, unknown>>;
   issueTypes: string[];
+  /** Internal: task1 memory IDs that have been offered to task2 at least once.
+   *  Used to detect intentional user deletions vs. memories never seen before. */
+  _task1KnownIds?: string[];
 }
 
 export interface Q1Task3Annotation extends CommonAnnotationFields {

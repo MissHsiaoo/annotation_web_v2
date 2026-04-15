@@ -277,20 +277,30 @@ function syncExistingQ1AnnotationsFromTask1(
             _task1GoldValue: String(gold.value ?? ''),
           };
         });
-        // Append any new task1 gold memories not already present in task2.
+        // Only append task1 gold memories that task2 has NEVER seen before.
+        // _task1KnownIds tracks which task1 IDs were offered to task2 in previous syncs.
+        // If an ID is in knownIds but absent from task2, the user deliberately deleted it — skip it.
+        const knownIds = new Set<string>(entry.annotation._task1KnownIds ?? []);
         const task2Ids = new Set(
           syncedMemories
             .map((m) => (typeof m.memory_id === 'string' ? m.memory_id : null))
             .filter(Boolean),
         );
         const appendedMemories = goldMemories
-          .filter((g) => typeof g.memory_id === 'string' && !task2Ids.has(g.memory_id as string))
+          .filter((g) => {
+            const id = typeof g.memory_id === 'string' ? g.memory_id : '';
+            return id && !task2Ids.has(id) && !knownIds.has(id);
+          })
           .map((g) => ({ ...cloneMemoryRecord(g), _task1GoldValue: String(g.value ?? '') }));
+        const nextKnownIds = goldMemories
+          .map((g) => (typeof g.memory_id === 'string' ? g.memory_id : ''))
+          .filter(Boolean);
         const nextAnnotation: Q1Task2Annotation = {
           ...entry.annotation,
           editableUpdatedMemories: cloneMemoryRecords(
             [...syncedMemories, ...appendedMemories] as Array<Record<string, unknown>>,
           ),
+          _task1KnownIds: nextKnownIds,
           updatedAt: timestamp,
         };
         syncedEntryCount += 1;

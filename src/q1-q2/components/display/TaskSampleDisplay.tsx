@@ -360,6 +360,7 @@ function createTask1Annotation(
 function syncUpdatedMemoriesWithGold(
   memories: EditableMemoryRecord[],
   goldMemories: EditableMemoryRecord[],
+  knownIds: Set<string> = new Set(),
 ): EditableMemoryRecord[] {
   if (goldMemories.length === 0) return memories;
 
@@ -390,10 +391,14 @@ function syncUpdatedMemoriesWithGold(
     };
   });
 
-  // Append any new task1 gold memories not already present in task2.
+  // Only append task1 gold memories that task2 has NEVER seen before.
+  // If an ID is in knownIds but missing from task2, the user deliberately deleted it — skip it.
   const existingIds = new Set(patched.map((m) => String(m.memory_id ?? '')).filter(Boolean));
   const appended = goldMemories
-    .filter((g) => String(g.memory_id ?? '') && !existingIds.has(String(g.memory_id ?? '')))
+    .filter((g) => {
+      const id = String(g.memory_id ?? '');
+      return id && !existingIds.has(id) && !knownIds.has(id);
+    })
     .map((g) => ({ ...cloneMemoryRecord(g), _task1GoldValue: String(g.value ?? '') }));
 
   return [...patched, ...appended];
@@ -425,9 +430,16 @@ function createTask2Annotation(
           annotatorNote: '',
         };
 
+  const knownIds = new Set<string>(base._task1KnownIds ?? []);
+  const syncedMemories = syncUpdatedMemoriesWithGold(base.editableUpdatedMemories, linkedGoldMemories, knownIds);
+
+  // Record all current task1 gold IDs as known so future syncs can detect intentional deletions.
+  const nextKnownIds = linkedGoldMemories.map((g) => String(g.memory_id ?? '')).filter(Boolean);
+
   return {
     ...base,
-    editableUpdatedMemories: syncUpdatedMemoriesWithGold(base.editableUpdatedMemories, linkedGoldMemories),
+    editableUpdatedMemories: syncedMemories,
+    ...(nextKnownIds.length > 0 ? { _task1KnownIds: nextKnownIds } : {}),
   };
 }
 
