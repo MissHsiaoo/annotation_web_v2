@@ -257,11 +257,16 @@ function syncExistingQ1AnnotationsFromTask1(
           const id = typeof mem.memory_id === 'string' ? mem.memory_id : null;
           const gold = id ? goldById.get(id) : undefined;
           if (!gold) return mem;
-          // Sync taxonomy/metadata from gold; preserve task2-specific fields.
+          // Only sync value if task2 hasn't independently edited it.
+          // _task1GoldValue tracks task1's gold value at the last sync time.
+          // If task2's current value differs from that baseline, the annotator
+          // independently edited task2 — preserve their change.
+          const lastSyncedValue = '_task1GoldValue' in mem ? String(mem._task1GoldValue ?? '') : undefined;
+          const valueIsDiverged = lastSyncedValue !== undefined && String(mem.value ?? '') !== lastSyncedValue;
           return {
             ...mem,
             memory_id: gold.memory_id,
-            value: gold.value,
+            ...(valueIsDiverged ? {} : { value: gold.value }),
             type: gold.type,
             label: gold.label,
             label_suggestion: gold.label_suggestion,
@@ -269,11 +274,23 @@ function syncExistingQ1AnnotationsFromTask1(
             time_scope: gold.time_scope,
             emotion: gold.emotion,
             preference_attitude: gold.preference_attitude,
+            _task1GoldValue: String(gold.value ?? ''),
           };
         });
+        // Append any new task1 gold memories not already present in task2.
+        const task2Ids = new Set(
+          syncedMemories
+            .map((m) => (typeof m.memory_id === 'string' ? m.memory_id : null))
+            .filter(Boolean),
+        );
+        const appendedMemories = goldMemories
+          .filter((g) => typeof g.memory_id === 'string' && !task2Ids.has(g.memory_id as string))
+          .map((g) => ({ ...cloneMemoryRecord(g), _task1GoldValue: String(g.value ?? '') }));
         const nextAnnotation: Q1Task2Annotation = {
           ...entry.annotation,
-          editableUpdatedMemories: cloneMemoryRecords(syncedMemories as Array<Record<string, unknown>>),
+          editableUpdatedMemories: cloneMemoryRecords(
+            [...syncedMemories, ...appendedMemories] as Array<Record<string, unknown>>,
+          ),
           updatedAt: timestamp,
         };
         syncedEntryCount += 1;

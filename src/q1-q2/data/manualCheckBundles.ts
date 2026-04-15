@@ -80,19 +80,19 @@ export function applyDirectAnnotationEdits(
     original.probe = original.probe && typeof original.probe === 'object' ? original.probe : {};
     original.probe.ground_truth_memories = annotation.editableGoldMemories
       .filter((item) => String(item.value ?? '').trim())
-      .map((item, index) => ({
-        ...item,
-        memory_id: item.memory_id || `memory-${index + 1}`,
-      }));
+      .map((item, index) => {
+        const exported = Object.fromEntries(Object.entries(item).filter(([k]) => !k.startsWith('_')));
+        return { ...exported, memory_id: item.memory_id || `memory-${index + 1}` };
+      });
   }
 
   if (annotation.formType === 'Q1:task2') {
     original.answer = annotation.editableUpdatedMemories
       .filter((item) => String(item.value ?? '').trim())
-      .map((item, index) => ({
-        ...item,
-        memory_id: item.memory_id || `memory-${index + 1}`,
-      }));
+      .map((item, index) => {
+        const exported = Object.fromEntries(Object.entries(item).filter(([k]) => !k.startsWith('_')));
+        return { ...exported, memory_id: item.memory_id || `memory-${index + 1}` };
+      });
   }
 
   if (annotation.formType === 'Q1:task3' && annotation.queryText.trim()) {

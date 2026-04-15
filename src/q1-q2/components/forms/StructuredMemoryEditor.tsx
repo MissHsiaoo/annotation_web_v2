@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/dialog';
 import { Textarea } from '../../../components/ui/textarea';
 import { TranslatedText } from '../display/TranslatedText';
 
@@ -47,7 +53,7 @@ export function cloneMemoryRecord(value: EditableMemoryRecord): EditableMemoryRe
 function getFieldOrder(record: EditableMemoryRecord): string[] {
   const knownFields = PREFERRED_FIELD_ORDER.filter((field) => field in record);
   const extraFields = Object.keys(record)
-    .filter((field) => !PREFERRED_FIELD_ORDER.includes(field))
+    .filter((field) => !PREFERRED_FIELD_ORDER.includes(field) && !field.startsWith('_'))
     .sort();
   return [...knownFields, ...extraFields];
 }
@@ -210,6 +216,8 @@ interface StructuredMemoryEditorProps {
   onConfirmEvidence?: (memoryIndex: number) => void;
   /** Called when user cancels the evidence selection. */
   onCancelEvidence?: () => void;
+  /** Task1 gold memories available for the "Replace Memory" picker. */
+  goldMemories?: EditableMemoryRecord[];
 }
 
 export function StructuredMemoryEditor({
@@ -225,8 +233,11 @@ export function StructuredMemoryEditor({
   activeEvidenceMemoryIndex,
   onConfirmEvidence,
   onCancelEvidence,
+  goldMemories,
 }: StructuredMemoryEditorProps) {
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
+  // replaceTargetIndex: the index in `memories` that the user wants to replace
+  const [replaceTargetIndex, setReplaceTargetIndex] = useState<number | null>(null);
 
   const setActiveMemoryIndexAndNotify = (updater: number | ((prev: number) => number)) => {
     setActiveMemoryIndex((prev) => {
@@ -294,9 +305,22 @@ export function StructuredMemoryEditor({
             {String(memory.label ?? 'Label Missing')}
           </Badge>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-xs" onClick={() => removeMemory(memoryIndex)}>
-          Remove
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {goldMemories && goldMemories.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setReplaceTargetIndex(memoryIndex)}
+            >
+              Replace Memory
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => removeMemory(memoryIndex)}>
+            Remove
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-2 lg:grid-cols-2">
@@ -431,6 +455,47 @@ export function StructuredMemoryEditor({
           {addButtonLabel}
         </Button>
       </div>
+
+      {/* Replace Memory picker dialog */}
+      <Dialog open={replaceTargetIndex !== null} onOpenChange={(open) => { if (!open) setReplaceTargetIndex(null); }}>
+        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Replace Memory — Select from Task 1 Golden Set</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-slate-500">
+            Select a memory from Task 1&apos;s golden set to replace the current entry. All fields will be replaced.
+          </p>
+          <div className="mt-3 space-y-2">
+            {(goldMemories ?? []).map((gold, idx) => (
+              <button
+                key={`${String(gold.memory_id ?? idx)}-${idx}`}
+                type="button"
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onClick={() => {
+                  if (replaceTargetIndex === null) return;
+                  const next = memories.map((m, i) =>
+                    i === replaceTargetIndex
+                      ? { ...cloneMemoryRecord(gold), _task1GoldValue: String(gold.value ?? '') }
+                      : m,
+                  );
+                  onChange(next);
+                  setReplaceTargetIndex(null);
+                }}
+              >
+                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline" className="border-slate-300 bg-slate-100 text-xs text-slate-700">
+                    {String(gold.memory_id ?? `memory-${idx + 1}`)}
+                  </Badge>
+                  <Badge variant="outline" className="border-slate-200 bg-white text-xs text-slate-500">
+                    {String(gold.label ?? 'Label Missing')}
+                  </Badge>
+                </div>
+                <p className="text-sm text-slate-800">{String(gold.value ?? '')}</p>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

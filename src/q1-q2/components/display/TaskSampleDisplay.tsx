@@ -368,11 +368,15 @@ function syncUpdatedMemoriesWithGold(
     const id = String(m.memory_id ?? '');
     const gold = id ? goldMemories.find((g) => String(g.memory_id ?? '') === id) : null;
     if (!gold) return m;
-    // Sync taxonomy/metadata from gold; preserve task2-specific fields (reasoning, evidence, evidence_text).
+    // Only sync value if task2 hasn't independently edited it.
+    // _task1GoldValue tracks task1's gold value at the last save-time sync.
+    // Don't write _task1GoldValue here (display-time only; not persisted).
+    const lastSyncedValue = '_task1GoldValue' in m ? String(m._task1GoldValue ?? '') : undefined;
+    const valueIsDiverged = lastSyncedValue !== undefined && String(m.value ?? '') !== lastSyncedValue;
     return {
       ...m,
       memory_id: gold.memory_id,
-      value: gold.value,
+      ...(valueIsDiverged ? {} : { value: gold.value }),
       type: gold.type,
       label: gold.label,
       label_suggestion: gold.label_suggestion,
@@ -380,10 +384,19 @@ function syncUpdatedMemoriesWithGold(
       time_scope: gold.time_scope,
       emotion: gold.emotion,
       preference_attitude: gold.preference_attitude,
+      // Set baseline on first display so the protection mechanism is active
+      // even before the first save-time sync runs.
+      ...(lastSyncedValue === undefined ? { _task1GoldValue: String(gold.value ?? '') } : {}),
     };
   });
 
-  return patched;
+  // Append any new task1 gold memories not already present in task2.
+  const existingIds = new Set(patched.map((m) => String(m.memory_id ?? '')).filter(Boolean));
+  const appended = goldMemories
+    .filter((g) => String(g.memory_id ?? '') && !existingIds.has(String(g.memory_id ?? '')))
+    .map((g) => ({ ...cloneMemoryRecord(g), _task1GoldValue: String(g.value ?? '') }));
+
+  return [...patched, ...appended];
 }
 
 function createTask2Annotation(
@@ -1101,6 +1114,7 @@ export function TaskSampleDisplay({
               memories={task2Annotation.editableUpdatedMemories}
               displayMode="carousel"
               translationEnabled={translationEnabled}
+              goldMemories={task2DisplayedMemories.length > 0 ? task2DisplayedMemories : undefined}
               onActiveIndexChange={(nextIndex) => {
                 if (evidenceSelection !== null && nextIndex !== evidenceSelection.memoryIndex) {
                   setEvidenceSelection(null);
